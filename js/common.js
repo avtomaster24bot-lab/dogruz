@@ -696,7 +696,15 @@
     link.href = URL.createObjectURL(new Blob([JSON.stringify(m)], { type: 'application/manifest+json' }));
   }
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+    // новая версия сайта: сразу активировать и один раз перезагрузить страницу
+    var hadCtrl = !!navigator.serviceWorker.controller, reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadCtrl || reloaded) return; reloaded = true;
+      if (!document.querySelector('input:focus, textarea:focus')) location.reload();
+    });
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(function (r) { if (r.update) r.update(); }).catch(function () {});
+    });
   }
 
   var VEZU = window.VEZU = {

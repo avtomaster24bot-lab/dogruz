@@ -31,7 +31,7 @@ def head(title,desc,url,extra='',robots=''):
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ВЕЗУ">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="{VER('css/style.css')}">
 {extra}</head>
 <body>
 '''+SP
@@ -63,7 +63,11 @@ QCHIPS='''    <div class="qchips" aria-label="Что везём">
       <button type="button" class="qchip" data-fill="what" data-v="Вывоз мусора" data-i18n="q_trash">Вывоз мусора</button>
     </div>
 '''
-SCRIPTS=lambda *xs: ''.join(f'<script src="{x}"></script>\n' for x in xs)
+import hashlib as _h
+def VER(x):  # ?v=<хэш файла>: после обновления телефон не возьмёт старый файл из кэша браузера
+    try: return x + '?v=' + _h.md5(open(x, 'rb').read()).hexdigest()[:8]
+    except FileNotFoundError: return x
+SCRIPTS=lambda *xs: ''.join(f'<script src="{VER(x)}"></script>\n' for x in xs)
 
 # ---------------- index ----------------
 index=head('ВЕЗУ — перевезём что угодно по лучшей цене','Грузоперевозки до 3 тонн по Казахстану: переезды, стройматериалы, мебель, вывоз мусора. Заказ в WhatsApp за 2 касания. Водителям — бесплатная визитка с QR.','',

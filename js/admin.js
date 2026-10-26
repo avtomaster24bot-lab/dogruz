@@ -2,27 +2,61 @@
 (function () {
   'use strict';
   var V = window.VEZU, C = window.VZC, app = document.getElementById('adm'), AK = 'vezu-admin';
-  var akey = sessionStorage.getItem(AK) || localStorage.getItem(AK) || '', timer = 0;
+  var akey = '', timer = 0;
+  try { akey = sessionStorage.getItem(AK) || localStorage.getItem(AK) || ''; } catch (e) {}
+  function forgetKey() { try { sessionStorage.removeItem(AK); localStorage.removeItem(AK); } catch (e) {} }
   function esc(s) { return V.esc(s == null ? '' : String(s)); }
   function dt(s) { if (!s) return '—'; var d = new Date(s); return ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear(); }
   function call(fn, args) { return C.rpc(fn, Object.assign({ p_admin: akey }, args || {})); }
 
+  // ключ из буфера: убрать пробелы, переносы, неразрывные и невидимые символы, кавычки
+  function cleanKey(v) { return String(v || '').replace(/[\s\u00a0\u200b-\u200f\u2028\u2029\u2060\ufeff"'«»`]/g, ''); }
+  function withTimeout(p, ms) {
+    return new Promise(function (ok, no) {
+      var t = setTimeout(function () { no(new Error('Сервер не ответил за ' + ms / 1000 + ' с. Проверьте интернет и попробуйте ещё раз')); }, ms);
+      p.then(function (x) { clearTimeout(t); ok(x); }, function (e) { clearTimeout(t); no(e); });
+    });
+  }
   function login(msg) {
-    app.innerHTML = '<section class="glass panel f adm-login"><h1>Админка ВЕЗУ</h1><p class="muted">Введите ключ админа. Он хранится только у владельца; в базе — лишь его отпечаток (SHA-256).</p>' +
-      '<input class="inp" id="ak" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="Ключ админа">' +
+    app.innerHTML = '<form class="glass panel f adm-login" id="lf" novalidate><h1>Админка ВЕЗУ</h1><p class="muted">Введите ключ админа. Он хранится только у владельца; в базе — лишь его отпечаток (SHA-256).</p>' +
+      '<div class="keyrow"><input class="inp" id="ak" type="password" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Ключ админа" aria-label="Ключ админа">' +
+      '<button class="btn btn-glass eye" type="button" id="eye" aria-label="Показать ключ" aria-pressed="false">👁</button></div>' +
+      '<small class="slugst" id="klen"></small>' +
       '<label class="check"><input type="checkbox" id="remember"><span>Запомнить на этом устройстве</span></label>' +
-      '<button class="btn btn-grad btn-block" id="go" type="button">Войти</button>' + (msg ? '<p class="err-msg">' + esc(msg) + '</p>' : '') + '</section>';
-    var go = function () {
-      var v = document.getElementById('ak').value.trim();
-      C.rpc('vz_is_admin', { p_admin: v }).then(function (ok) {
-        if (!ok) return login('Ключ не подходит');
-        akey = v; sessionStorage.setItem(AK, v);
-        if (document.getElementById('remember').checked) localStorage.setItem(AK, v);
-        main();
-      }, function (e) { login(e.message); });
-    };
-    document.getElementById('go').addEventListener('click', go);
-    document.getElementById('ak').addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+      '<button class="btn btn-grad btn-block" id="go" type="submit">Войти</button>' +
+      '<p class="err-msg" id="lerr" role="alert"' + (msg ? '' : ' hidden') + '>' + esc(msg || '') + '</p></form>';
+    var f = document.getElementById('lf'), inp = document.getElementById('ak'), btn = document.getElementById('go'),
+      err = document.getElementById('lerr'), klen = document.getElementById('klen'), busy = false;
+    function show(m) { err.textContent = m; err.hidden = !m; if (m) try { err.scrollIntoView({ block: 'center' }); } catch (e) {} }
+    function count() {
+      var raw = inp.value, k = cleanKey(raw);
+      klen.textContent = raw ? 'Символов: ' + k.length + (k.length !== raw.length ? ' (лишние пробелы и невидимые символы убраны)' : '') : '';
+      klen.className = 'slugst' + (raw ? (/^[A-Za-z0-9_-]{32,64}$/.test(k) ? ' ok' : ' bad') : '');
+    }
+    inp.addEventListener('input', function () { count(); if (!busy) show(''); });
+    document.getElementById('eye').addEventListener('click', function () {
+      var on = inp.type === 'password'; inp.type = on ? 'text' : 'password';
+      this.setAttribute('aria-pressed', on ? 'true' : 'false'); this.setAttribute('aria-label', on ? 'Скрыть ключ' : 'Показать ключ');
+    });
+    function go(e) {
+      if (e && e.preventDefault) e.preventDefault();
+      if (busy) return;
+      var v = cleanKey(inp.value);
+      if (!v) { show('Вставьте ключ админа'); return; }
+      if (!/^[A-Za-z0-9_-]{32,64}$/.test(v)) { show('Ключ выглядит неправильно: ' + v.length + ' символов, нужны латиница, цифры, «-» и «_» (обычно 43 символа)'); return; }
+      busy = true; btn.disabled = true; btn.textContent = 'Проверяю…'; show('');
+      var done = function (m) { busy = false; btn.disabled = false; btn.textContent = 'Войти'; show(m); };
+      try {
+        withTimeout(C.rpc('vz_is_admin', { p_admin: v }), 10000).then(function (ok) {
+          if (ok !== true) return done('Ключ не подходит (' + v.length + ' символов). Проверьте, что скопировали его целиком');
+          akey = v;
+          try { sessionStorage.setItem(AK, v); if (document.getElementById('remember').checked) localStorage.setItem(AK, v); } catch (x) {}
+          try { main(); } catch (x) { done('Ошибка страницы: ' + x.message); }
+        }, function (er) { done((er && er.message) || 'Не удалось проверить ключ'); });
+      } catch (x) { done('Ошибка: ' + x.message); }
+    }
+    f.addEventListener('submit', go);
+    count();
   }
 
   function main() {
@@ -33,7 +67,7 @@
       '<input class="inp" id="q" placeholder="Имя, телефон, адрес (slug), город или @telegram" autocomplete="off">' +
       '<label class="fld"><span>Комментарий к продлению (например: Kaspi 1 500 ₸, 26.10)</span><input class="inp" id="note" maxlength="200"></label>' +
       '<div id="rows" class="adm-rows"></div>';
-    document.getElementById('out').addEventListener('click', function () { sessionStorage.removeItem(AK); localStorage.removeItem(AK); akey = ''; login(); });
+    document.getElementById('out').addEventListener('click', function () { forgetKey(); akey = ''; login(); });
     document.getElementById('q').addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(find, 300); });
     ['rows', 'reqs', 'exp'].forEach(function (id) { document.getElementById(id).addEventListener('click', act); });
     stats(); find(); lists();
@@ -119,9 +153,13 @@
     }
   }
 
-  C.ready().then(function (ok) {
-    if (!ok) { app.innerHTML = '<section class="glass panel"><h1>Админка ВЕЗУ</h1><p class="muted">Облако ВЕЗУ ещё не подключено (нет функций vz_* в базе).</p></section>'; return; }
-    if (!akey) return login();
-    C.rpc('vz_is_admin', { p_admin: akey }).then(function (a) { if (a) main(); else { localStorage.removeItem(AK); sessionStorage.removeItem(AK); login(); } }, function (e) { login(e.message); });
+  window.addEventListener('error', function (e) {
+    var el = document.getElementById('lerr'); if (el && e && e.message) { el.textContent = 'Ошибка страницы: ' + e.message + '. Обновите страницу.'; el.hidden = false; }
   });
+  if (!C || !C.rpc) { app.innerHTML = '<section class="glass panel"><h1>Админка ВЕЗУ</h1><p class="err-msg">Не загрузились файлы сайта. Обновите страницу.</p></section>'; return; }
+  // Форму входа показываем сразу, не дожидаясь проверки облака (на медленном интернете страница не «висит»)
+  if (!window.fetch || !window.Promise) { app.innerHTML = '<section class="glass panel"><h1>Админка ВЕЗУ</h1><p class="err-msg">Этот браузер слишком старый. Откройте страницу в Chrome.</p></section>'; return; }
+  if (!akey) login();
+  else withTimeout(C.rpc('vz_is_admin', { p_admin: akey }), 10000).then(function (a) { if (a === true) main(); else { forgetKey(); akey = ''; login('Сохранённый ключ больше не действует'); } },
+    function (e) { login(e.message); });
 })();

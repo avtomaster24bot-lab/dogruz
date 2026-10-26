@@ -521,3 +521,4 @@ details.more>.f{padding:4px 14px 16px}
 .pay-steps b{white-space:nowrap}.pay-steps .btn{display:flex;width:max-content}
 .linkrow .inp{min-width:0;flex:1 1 auto;width:auto}.linkrow .btn{flex:none}
 .pro-box,.pro-box>*,.pro-box label,.slugrow{min-width:0}.slugrow b{flex:0 1 auto;min-width:0}
+.keyrow{display:flex;gap:8px}.keyrow .inp{flex:1 1 auto;min-width:0}.keyrow .eye{flex:none;width:52px;padding:0;font-size:20px}
