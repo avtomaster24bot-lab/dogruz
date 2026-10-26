@@ -69,9 +69,14 @@
   V.bindOrderForm(document.getElementById('order'), function () { return d.p; }, function () { return d.n; });
 
   document.getElementById('vcf').addEventListener('click', function () {
-    V.download(V.fileName(d.n) + '.vcf', V.vcf(d, url), 'text/vcard;charset=utf-8');
+    V.addContact(d, url);
   });
-  if (cloud.slug) V.cardManifest(d, url);
+  // Установка на телефон: для коротких адресов — статический манифест <адрес>.webmanifest (Chrome надёжнее ставит
+  // приложение по настоящему файлу, чем по blob:), иначе — сгенерированный. Название приложения всегда VEZU.
+  if (cloud.slug) fetch(cloud.slug + '.webmanifest', { method: 'HEAD', cache: 'no-cache' }).then(function (r) {
+    if (!r.ok) throw 0;
+    var link = document.querySelector('link[rel=manifest]'); link.href = cloud.slug + '.webmanifest';
+  }).catch(function () { V.cardManifest(d, url); });
   else V.cardUrlAsync(d).then(function (u) { url = u; V.cardManifest(d, url); });
   function showQR() {
     var s = V.sheet(V.t('qr_t'), '<p class="muted">' + V.esc(V.t('qr_s')) + '</p><div class="qr qr-big" id="qrsheet">' + V.qrSvg(url) + '</div>' +

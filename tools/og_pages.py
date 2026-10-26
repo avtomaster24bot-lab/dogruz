@@ -31,6 +31,16 @@ def fmt_num(s):
     return re.sub(r'\B(?=(\d{3})+(?!\d))', '\u00a0', s)
 
 
+def manifest(slug):
+    """Манифест для установки визитки на телефон: название всегда VEZU, открывается визитка водителя."""
+    m = {'name': 'VEZU', 'short_name': 'VEZU', 'id': './card.html?u=' + slug, 'start_url': './card.html?u=' + slug,
+         'scope': './', 'display': 'standalone', 'background_color': '#06061a', 'theme_color': '#06061a', 'lang': 'ru',
+         'icons': [{'src': 'icons/icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
+                   {'src': 'icons/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
+                   {'src': 'icons/maskable-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}]}
+    return json.dumps(m, ensure_ascii=False, indent=1) + '\n'
+
+
 def page(c):
     slug = c['slug']
     name = (c.get('n') or 'Водитель').strip()[:40]
@@ -110,15 +120,20 @@ def main():
         f = os.path.join(ROOT, c['slug'] + '.html')
         if os.path.exists(f) and c['slug'] not in old:
             print('skip (не наш файл):', c['slug']); continue
+        mf = os.path.join(ROOT, c['slug'] + '.webmanifest')
+        mbody = manifest(c['slug'])
+        if not os.path.exists(mf) or open(mf, encoding='utf-8').read() != mbody:
+            open(mf, 'w', encoding='utf-8').write(mbody)
         body = page(c)
         if not os.path.exists(f) or open(f, encoding='utf-8').read() != body:
             open(f, 'w', encoding='utf-8').write(body)
             print('write', c['slug'])
         new.add(c['slug'])
     for sl in sorted(old - new):
-        f = os.path.join(ROOT, sl + '.html')
-        if SLUG.match(sl) and os.path.isfile(f):
-            os.remove(f); print('remove', sl)
+        for ext in ('.html', '.webmanifest'):
+            f = os.path.join(ROOT, sl + ext)
+            if SLUG.match(sl) and os.path.isfile(f):
+                os.remove(f); print('remove', sl + ext)
     if new != old or not os.path.exists(MANIFEST):
         json.dump(sorted(new), open(MANIFEST, 'w'), indent=0)
         open(MANIFEST, 'a').write('\n')

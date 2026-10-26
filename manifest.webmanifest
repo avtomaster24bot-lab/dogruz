@@ -1,6 +1,6 @@
 {
-  "name": "ВЕЗУ — визитка водителя",
-  "short_name": "ВЕЗУ",
+  "name": "VEZU — визитка водителя",
+  "short_name": "VEZU",
   "description": "Грузоперевозки до 3 тонн: визитка водителя с WhatsApp и QR-кодом.",
   "id": "./new.html",
   "start_url": "./new.html",

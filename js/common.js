@@ -604,6 +604,28 @@
     return cv.toDataURL('image/png');
   }
 
+  // ---------- В контакты ----------
+  // Android: сразу открыть системный экран «Новый контакт» (ContactsContract.Intents.Insert) с именем и номером.
+  // Если ничего не открылось (WebView, нет приложения контактов) — скачать .vcf. iOS и компьютер — .vcf.
+  function contactIntent(d, url) {
+    var q = function (s) { return encodeURIComponent(String(s || '')); };
+    var note = [servicesRu(d).join(', '), d.m, url].filter(Boolean).join('. ');
+    return 'intent:#Intent;action=android.intent.action.INSERT;type=vnd.android.cursor.dir%2Fcontact;' +
+      'S.name=' + q(d.n) + ';' + (d.p ? 'S.phone=' + q('+' + d.p) + ';i.phone_type=2;' : '') +
+      'S.company=' + q('VEZU · Грузоперевозки') + ';' + (d.c || d.w ? 'S.job_title=' + q([d.c, d.w ? 'до ' + d.w : ''].filter(Boolean).join(' ')) + ';' : '') +
+      (note ? 'S.notes=' + q(note.slice(0, 300)) + ';' : '') + 'end';
+  }
+  function addContact(d, url) {
+    var file = function () { download(fileName(d.n) + '.vcf', vcf(d, url), 'text/vcard;charset=utf-8'); };
+    if (!IS_ANDROID) return file();
+    var left = false, mark = function () { left = true; };
+    document.addEventListener('visibilitychange', function h() { if (document.hidden) { mark(); document.removeEventListener('visibilitychange', h); } });
+    window.addEventListener('pagehide', mark, { once: true });
+    window.addEventListener('blur', mark, { once: true });
+    try { nav(contactIntent(d, url)); } catch (e) { return file(); }
+    setTimeout(function () { if (!left && !document.hidden) file(); }, 1600);
+  }
+
   // ---------- vCard ----------
   function vcf(d, url) {
     var e = function (s) { return String(s || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1'); };
@@ -688,7 +710,7 @@
   function cardManifest(d, url) {
     var base = baseUrl();
     var m = {
-      name: (d.n || 'Визитка') + ' — грузоперевозки', short_name: String(d.n || 'ВЕЗУ').split(' ')[0].slice(0, 12),
+      name: 'VEZU', short_name: 'VEZU', description: (d.n || 'Водитель') + ' — грузоперевозки',   // название приложения всегда VEZU
       id: url, start_url: url, scope: base, display: 'standalone', background_color: '#06061a', theme_color: '#06061a', lang: 'ru',
       icons: [{ src: base + 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }, { src: base + 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
         { src: base + 'icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }]
@@ -718,7 +740,7 @@
     normPhone: normPhone, fmtPhone: fmtPhone, waLink: waLink, waApp: waApp, waApi: waApi, waIntent: waIntent, waHref: waHref, openWA: openWA, bindWaLink: bindWaLink, inAppBrowser: inAppBrowser,
     IS_MOBILE: IS_MOBILE, IS_ANDROID: IS_ANDROID, IS_IOS: IS_IOS, _nav: function (u) { location.href = u; }, gisLink: gisLink, gmapsLink: gmapsLink, fmtNum: fmtNum, fmtPrice: fmtPrice, orderText: orderText,
     services: services, initials: initials, metaLine: metaLine, hoursText: hoursText, isOpen: isOpen, almatyHour: almatyHour, priceText: priceText, cardHero: cardHero, cardDetails: cardDetails, applyTheme: applyTheme,
-    qrSvg: qrSvg, qrPng: qrPng, vcf: vcf, download: download, fileName: fileName,
+    qrSvg: qrSvg, qrPng: qrPng, vcf: vcf, contactIntent: contactIntent, addContact: addContact, download: download, fileName: fileName,
     toast: toast, copy: copy, share: share, bindOrderForm: bindOrderForm, bindInstall: bindInstall, cardManifest: cardManifest
   };
 })();

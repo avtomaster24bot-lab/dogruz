@@ -29,7 +29,7 @@ def head(title,desc,url,extra='',robots=''):
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ВЕЗУ">
+<meta name="apple-mobile-web-app-title" content="VEZU">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="{VER('css/style.css')}">
 {extra}</head>
