@@ -89,7 +89,7 @@
       (pro ? slugField(card.slug || '') : '') + pubField(card.is_published) +
       '<button type="button" class="btn ' + (dirty ? 'btn-grad' : 'btn-glass') + ' btn-block" id="psave">Сохранить в облаке</button>' +
       '<div class="pro-stats"><h4>Моя статистика</h4><div id="pstats">' + (pro ? statsHtml() : '<p class="muted">Статистика доступна с Про.</p>') + '</div></div>' +
-      '<button type="button" class="btn btn-wa btn-block" data-pay="1"><svg><use href="#i-wa"/></svg>' + (pro ? 'Продлить Про' : 'Подключить Про') + ' — ' + PRICE + ' · Kaspi</button>' +
+      '<button type="button" class="btn btn-wa btn-block" data-pay="1"><svg><use href="#i-wa"/></svg>' + (pro ? 'Продлить Про' : 'Подключить Про') + ' · ' + PRICE + '</button>' +
       (card.pay_pending ? '<p class="pro-pend">Заявка на продление отправлена — Про продлим после проверки оплаты.</p>' : '') +
       refHtml() +
       '<details class="more"><summary>Ключ доступа и другие телефоны</summary><div class="f">' +
