@@ -489,7 +489,9 @@
     if (d.w === '2 т') return 'gazel-long';
     return 'gazel';
   }
-  function vehicleImg(d) { return 'img/v-' + vehicle(d) + '.webp'; }
+  // Своё фото машины для отдельных визиток (по номеру телефона водителя). Общие картинки сайта не меняются.
+  var OWN_VEH = { '77714105797': 'img/own/77714105797.webp' };
+  function vehicleImg(d) { var p = d && normPhone(d.p); return (p && OWN_VEH[p]) || 'img/v-' + vehicle(d) + '.webp'; }
   var TG_PHOTO = 64;
   // Фото с телефона хранится только на этом устройстве и показывается на визитке с тем же номером
   function localPhoto(d, any) {
