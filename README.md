@@ -24,7 +24,7 @@ PWA: `manifest.webmanifest`, `sw.js` (сеть в первую очередь, �
 - Если облако недоступно или схемы нет — сайт работает как раньше (визитка-ссылка), Про показывается как «скоро».
 - Превью ссылок в WhatsApp/Telegram: Supabase не отдаёт HTML из edge-функций (переписывает в text/plain), поэтому GitHub Actions
   (`.github/workflows/og-pages.yml`, каждые 15 мин) запускает `tools/og_pages.py`: берёт список адресов из RPC `vz_og_list` (токен — секрет
-  репозитория `VZ_OG_TOKEN`, в `vz_settings` — его SHA-256) и пишет `…/dogruz/<slug>/index.html` с Open Graph тегами (имя, машина, город, фото)
+  репозитория `VZ_OG_TOKEN`, в `vz_settings` — его SHA-256) и пишет `…/dogruz/<slug>.html` (Pages отдаёт её по `…/dogruz/<slug>` без редиректа) с Open Graph тегами (имя, машина, город, фото)
   и переходом на `card.html?u=<slug>`. Список своих папок — `tools/og-slugs.json`. Фото для превью — JPEG-копия (`photo_og`), иначе картинка машины `img/og-*.jpg`.
 - «Приведи водителя»: ссылка `new.html?ref=<код>`; новая визитка по ней — пригласившему +7 дней Про (один раз на номер, `vz_ref_log`).
 - Оплата: Kaspi-перевод → «Я оплатил» (заявка `vz_pay_requests` + WhatsApp владельцу). В админке — «Заявки на продление» и «Истекает скоро».

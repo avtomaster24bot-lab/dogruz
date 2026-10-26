@@ -10,22 +10,30 @@
   var slug = (new URLSearchParams(location.search).get('u') || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 20);
   if (slug && C) {
     app.classList.add('loading');
-    C.ready().then(function (ok) { return ok ? C.rpc('vz_card', { p_slug: slug }) : null; })
+    var fallback = function () {   // данные, оставленные страницей-превью …/dogruz/<адрес>/ (если облако недоступно)
+      try { var f = JSON.parse(sessionStorage.getItem('vezu-og-' + slug) || 'null'); return f && f.n && f.p ? V.clean(f) : null; } catch (e) { return null; }
+    };
+    var timer = new Promise(function (ok, no) { setTimeout(function () { no(new Error('timeout')); }, 12000); });
+    Promise.race([C.ready().then(function (ok) { if (!ok) throw new Error('offline'); return C.rpc('vz_card', { p_slug: slug }); }), timer])
       .then(function (r) {
         app.classList.remove('loading');
         if (!r || !r.d) return start(null);
         var d = V.clean(r.d);
         if (r.photo) d.i = C.photoUrl(r.photo);
         start(d, { slug: r.slug, pro: !!r.pro, lifetime: !!r.lifetime });
-      }, function () { app.classList.remove('loading'); start(null, { offline: true }); });
+      }, function () {
+        app.classList.remove('loading');
+        var f = fallback();
+        if (f) start(f, { slug: slug, cached: true }); else start(null, { offline: true });
+      });
   } else start(V.readCard());
 
   function start(d, cloud) {
   cloud = cloud || {};
   if (!d || !d.n) {
     var renderErr = function () {
-      app.innerHTML = '<div class="err glass"><h1>' + V.esc(V.t('nf_t')) + '</h1><p class="muted">' + V.esc(cloud.offline ? 'Не удалось загрузить визитку — проверьте интернет и обновите страницу.' : V.t('nf_s')) + '</p>' +
-        '<div class="btns" style="justify-content:center;margin-top:20px"><a class="btn btn-grad" href="new.html">' + V.esc(V.t('nf_new')) + '</a><a class="btn btn-glass" href="./">' + V.esc(V.t('nf_home')) + '</a></div></div>';
+      app.innerHTML = '<div class="err glass"><h1>' + V.esc(cloud.offline ? 'Не удалось открыть визитку' : V.t('nf_t')) + '</h1><p class="muted">' + V.esc(cloud.offline ? 'Не удалось загрузить визитку — проверьте интернет и обновите страницу.' : V.t('nf_s')) + '</p>' +
+        '<div class="btns" style="justify-content:center;margin-top:20px">' + (cloud.offline ? '<button type="button" class="btn btn-grad" onclick="location.reload()">Повторить</button>' : '') + '<a class="btn ' + (cloud.offline ? 'btn-glass' : 'btn-grad') + '" href="new.html">' + V.esc(V.t('nf_new')) + '</a><a class="btn btn-glass" href="./">' + V.esc(V.t('nf_home')) + '</a></div></div>';
     };
     renderErr();
     langBtns.forEach(function (b) { b.addEventListener('click', function () { V.setLang(b.dataset.lang, true); markLang(); renderErr(); }); });

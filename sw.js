@@ -1,5 +1,5 @@
 /* ВЕЗУ service worker: сеть в первую очередь, кэш — для работы офлайн */
-var CACHE = 'vezu-v7';
+var CACHE = 'vezu-v8';
 var SHELL = ['./', 'index.html', 'card.html', 'new.html', 'tarify.html', 'catalog.html', 'js/config.js', 'js/cloud.js', 'js/pro.js', 'js/pay.js', 'js/catalog.js', 'css/style.css', 'js/common.js', 'js/card.js', 'js/new.js',
   'js/vendor/qrcode.js', 'js/vendor/inflate.js', 'favicon.svg', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
   'img/hero-van-720.webp', 'img/v-kabluk.webp', 'img/v-gazel.webp', 'img/v-gazel-long.webp', 'img/v-truck3.webp'];
@@ -14,16 +14,21 @@ self.addEventListener('activate', function (e) {
     return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
   }).then(function () { return self.clients.claim(); }));
 });
-// Админку не кэшируем вовсе. Остальное — сеть в первую очередь с проверкой свежести (no-cache: 304 по ETag),
-// чтобы после обновления сайта телефон не брал старые файлы из HTTP-кэша. Кэш — только для офлайна.
+// Навигация: перехватываем ТОЛЬКО известные страницы сайта. Остальные адреса (короткие адреса водителей
+// …/dogruz/<адрес>, редиректы 301, 404) идут в сеть напрямую, без service worker.
+// Для навигации нельзя отдавать ответ после редиректа (Chrome показывает ERR_FAILED), поэтому redirect: 'manual'.
+// Админку не кэшируем вовсе. Остальное — сеть в первую очередь с проверкой свежести (no-cache), кэш — только для офлайна.
+var PAGES = /^(|index\.html|card\.html|new\.html|tarify\.html|catalog\.html)$/;
 var NOCACHE = /\/(admin\.html|js\/admin\.js)$/;
 self.addEventListener('fetch', function (e) {
   var req = e.request, u = new URL(req.url);
   if (req.method !== 'GET' || u.origin !== location.origin) return;
-  if (NOCACHE.test(u.pathname)) { e.respondWith(fetch(req.mode === 'navigate' ? req.url : req, { cache: 'no-store', credentials: 'same-origin' })); return; }
-  var net = req.mode === 'navigate' ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req, { cache: 'no-cache' });
+  var nav = req.mode === 'navigate';
+  if (nav && !PAGES.test(u.href.split(/[?#]/)[0].slice(self.registration.scope.length))) return;
+  if (NOCACHE.test(u.pathname)) return;
+  var net = nav ? fetch(new Request(req.url, { cache: 'no-cache', redirect: 'manual', credentials: 'same-origin' })) : fetch(req, { cache: 'no-cache' });
   e.respondWith(net.then(function (res) {
-    if (res && res.ok && res.type === 'basic') {
+    if (res && res.ok && res.type === 'basic' && !res.redirected) {
       var copy = res.clone(), url = new URL(req.url);
       url.search = '';
       caches.open(CACHE).then(function (c) { c.put(url.href, copy); });
@@ -31,7 +36,7 @@ self.addEventListener('fetch', function (e) {
     return res;
   }).catch(function () {
     return caches.match(req, { ignoreSearch: true }).then(function (r) {
-      return r || (req.mode === 'navigate' ? caches.match('card.html') : Response.error());
+      return r || (nav ? caches.match('card.html') : Response.error());
     });
   }));
 });

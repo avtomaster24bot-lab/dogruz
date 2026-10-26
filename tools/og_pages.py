@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Страницы-превью для коротких адресов ВЕЗУ Про: …/dogruz/<адрес>/index.html.
+"""Страницы-превью для коротких адресов ВЕЗУ Про: …/dogruz/<адрес>.html (GitHub Pages отдаёт её по …/dogruz/<адрес> без редиректа).
 
 GitHub Pages — статический хостинг, а WhatsApp/Telegram не выполняют JS, поэтому превью
 (имя, машина, город, фото водителя) берём из статических Open Graph тегов. Скрипт получает
@@ -51,9 +51,15 @@ def page(c):
         img, iw, ih = SITE + 'img/og-' + c['veh'] + '.jpg', 1200, 630
     else:
         img, iw, ih = SITE + 'og.png', 1200, 630
-    url = SITE + slug + '/'
+    url = SITE + slug
     e = lambda s: html.escape(s, quote=True)
     js_slug = json.dumps(slug)
+    phone = re.sub(r'\D', '', str(c.get('p') or ''))
+    keep = {k: c[k] for k in ('n', 'c', 'w', 't', 'pr', 'pu') if c.get(k) not in (None, '')}
+    if phone: keep['p'] = phone
+    # запасные данные для card.html (если облако не ответит) + сама страница показывает имя и WhatsApp без JS
+    js_data = json.dumps(keep, ensure_ascii=False).replace('<', '\\u003c')
+    wa = f'<p><a class="b" href="https://wa.me/{phone}">Написать в WhatsApp</a></p>' if phone else ''
     return f'''<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -74,11 +80,12 @@ def page(c):
 <meta property="og:image:alt" content="{e(name)}">
 <meta name="twitter:card" content="{'summary' if iw == 256 else 'summary_large_image'}">
 <meta name="theme-color" content="#06061a">
-<style>body{{margin:0;min-height:100vh;display:grid;place-items:center;background:#06061a;color:#f2f1ff;font:16px/1.5 system-ui,sans-serif;text-align:center}}a{{color:#7fe7ff}}</style>
-<script>location.replace('../card.html?u=' + {js_slug} + location.hash);</script>
+<style>body{{margin:0;min-height:100vh;display:grid;place-items:center;background:#06061a;color:#f2f1ff;font:16px/1.5 system-ui,sans-serif;text-align:center;padding:20px;box-sizing:border-box}}a{{color:#7fe7ff}}h1{{font-size:26px;margin:0 0 6px}}.b{{display:inline-block;margin-top:8px;padding:12px 22px;border-radius:14px;background:#25d366;color:#04210f;font-weight:700;text-decoration:none}}</style>
+<script>try{{sessionStorage.setItem('vezu-og-' + {js_slug}, JSON.stringify({js_data}));}}catch(e){{}}
+location.replace('card.html?u=' + {js_slug} + location.hash);</script>
 </head>
 <body>
-<main><p>Открываем визитку…</p><p><a href="../card.html?u={e(slug)}">{e(name)} — открыть визитку</a></p></main>
+<main><h1>{e(name)}</h1><p>{e(desc)}</p>{wa}<p><a href="card.html?u={e(slug)}">Открыть визитку →</a></p></main>
 </body>
 </html>
 '''
@@ -94,21 +101,24 @@ def main():
     except FileNotFoundError:
         old = set()
     new = set()
+    # старый формат (папка <адрес>/index.html, давал редирект 301) — убрать
+    for sl in sorted(old):
+        d = os.path.join(ROOT, sl)
+        if SLUG.match(sl) and os.path.isdir(d) and os.path.isfile(os.path.join(d, 'index.html')):
+            shutil.rmtree(d); print('remove legacy dir', sl)
     for c in cards:
-        d = os.path.join(ROOT, c['slug'])
-        if os.path.exists(d) and c['slug'] not in old:
-            print('skip (не наша папка):', c['slug']); continue
-        os.makedirs(d, exist_ok=True)
+        f = os.path.join(ROOT, c['slug'] + '.html')
+        if os.path.exists(f) and c['slug'] not in old:
+            print('skip (не наш файл):', c['slug']); continue
         body = page(c)
-        f = os.path.join(d, 'index.html')
         if not os.path.exists(f) or open(f, encoding='utf-8').read() != body:
             open(f, 'w', encoding='utf-8').write(body)
             print('write', c['slug'])
         new.add(c['slug'])
-    for s in sorted(old - new):
-        d = os.path.join(ROOT, s)
-        if SLUG.match(s) and os.path.isfile(os.path.join(d, 'index.html')):
-            shutil.rmtree(d); print('remove', s)
+    for sl in sorted(old - new):
+        f = os.path.join(ROOT, sl + '.html')
+        if SLUG.match(sl) and os.path.isfile(f):
+            os.remove(f); print('remove', sl)
     if new != old or not os.path.exists(MANIFEST):
         json.dump(sorted(new), open(MANIFEST, 'w'), indent=0)
         open(MANIFEST, 'a').write('\n')
