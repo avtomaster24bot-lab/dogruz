@@ -16,7 +16,7 @@
         if (!r || !r.d) return start(null);
         var d = V.clean(r.d);
         if (r.photo) d.i = C.photoUrl(r.photo);
-        start(d, { slug: r.slug, pro: !!r.pro });
+        start(d, { slug: r.slug, pro: !!r.pro, lifetime: !!r.lifetime });
       }, function () { app.classList.remove('loading'); start(null, { offline: true }); });
   } else start(V.readCard());
 
@@ -37,13 +37,13 @@
   document.title = d.n + (d.c ? ' · ' + d.c : '') + ' — грузоперевозки | ВЕЗУ';
   var hero = document.getElementById('hero'), det = document.getElementById('details');
   function render() {
-    hero.innerHTML = V.cardHero(d);
+    hero.innerHTML = V.cardHero(d, false, { badge: cloud.lifetime ? '★ Про · бессрочно' : cloud.pro ? 'PRO' : '' });
     var html = V.cardDetails(d);
     det.innerHTML = html ? '<h2>' + V.esc(V.t('details')) + '</h2>' + html : '';
     det.hidden = !html;
   }
   render();
-  if (d.hs != null) setInterval(function () { hero.innerHTML = V.cardHero(d); }, 60000);
+  if (d.hs != null) setInterval(function () { hero.innerHTML = V.cardHero(d, false, { badge: cloud.lifetime ? '★ Про · бессрочно' : cloud.pro ? 'PRO' : '' }); }, 60000);
 
   var hello = 'Здравствуйте, ' + d.n.split(' ')[0] + '! Нашёл(ла) вашу визитку. Нужна перевозка.';
   var wa = document.getElementById('wa'), call = document.getElementById('call'), tg = document.getElementById('tg');

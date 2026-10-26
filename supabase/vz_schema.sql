@@ -128,7 +128,8 @@ create or replace function public.vz_ping() returns int language sql stable set 
 create or replace function vz_private.vz_pub(c public.vz_cards) returns jsonb
 language sql stable set search_path = '' as $$
   select jsonb_build_object('slug', c.slug, 'd', c.data, 'photo', c.photo_path,
-    'pro', coalesce(c.pro_until > now(), false), 'paid', c.is_paid, 'updated_at', c.updated_at);
+    'pro', coalesce(c.pro_until > now(), false), 'paid', c.is_paid, 'updated_at', c.updated_at,
+    'lifetime', coalesce(c.pro_until > now() + interval '50 years', false));
 $$;
 create or replace function vz_private.vz_priv(c public.vz_cards) returns jsonb
 language sql stable set search_path = '' as $$
@@ -295,6 +296,7 @@ language sql stable set search_path = '' as $$
     'city', c.city, 'pro_until', c.pro_until, 'is_paid', c.is_paid, 'is_published', c.is_published,
     'is_blocked', c.is_blocked, 'created_at', c.created_at, 'photo', c.photo_path,
     'refs', (select count(*) from public.vz_ref_log r where r.referrer = c.id),
+    'lifetime', coalesce(c.pro_until > now() + interval '50 years', false),
     'views30', (select count(*) from public.vz_events e where e.card_id = c.id and e.kind = 'view' and e.day > current_date - 30));
 $$;
 
@@ -393,6 +395,18 @@ begin
                  from public.vz_cards c where c.pro_until between now() - interval '7 days' and now() + interval '3 days' and not c.is_blocked));
 end $$;
 
+-- Новый ключ доступа к визитке для этого устройства (открыть кабинет водителя из админки).
+-- В базе — только SHA-256; прежний ключ визитки перестаёт работать.
+create or replace function vz_private.vz_admin_issue_key(p_admin text, p_card uuid) returns text
+language plpgsql security definer set search_path = '' as $$
+declare k text := replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '');
+begin
+  if not vz_private.vz_is_admin(p_admin) then raise exception 'Нет прав' using errcode = '42501'; end if;
+  update public.vz_cards set key_hash = vz_private.vz_hash(k) where id = p_card;
+  if not found then raise exception 'Визитка не найдена'; end if;
+  return k;
+end $$;
+
 create or replace function vz_private.vz_admin_dismiss(p_admin text, p_req bigint) returns void
 language plpgsql security definer set search_path = '' as $$
 begin
@@ -408,7 +422,7 @@ begin
     raise exception 'Нет прав' using errcode = '42501';
   end if;
   return (select coalesce(jsonb_agg(jsonb_build_object('slug', c.slug, 'n', c.data->>'n', 'c', c.data->>'c', 'w', c.data->>'w',
-      't', c.data->>'t', 'pr', c.data->>'pr', 'pu', c.data->>'pu', 'veh', c.veh,
+      't', c.data->>'t', 'pr', c.data->>'pr', 'pu', c.data->>'pu', 'veh', c.veh, 'p', c.phone,
       'photo', case when c.pro_until > now() then c.photo_og end) order by c.slug), '[]'::jsonb)
     from public.vz_cards c where c.slug is not null and not c.is_blocked);
 end $$;
@@ -435,6 +449,8 @@ create or replace function public.vz_pay_request(p_key text, p_months int defaul
 language sql security invoker set search_path = '' as $$ select vz_private.vz_pay_request(p_key, p_months) $$;
 create or replace function public.vz_admin_lists(p_admin text) returns jsonb
 language sql security invoker set search_path = '' as $$ select vz_private.vz_admin_lists(p_admin) $$;
+create or replace function public.vz_admin_issue_key(p_admin text, p_card uuid) returns text
+language sql security invoker set search_path = '' as $$ select vz_private.vz_admin_issue_key(p_admin, p_card) $$;
 create or replace function public.vz_admin_dismiss(p_admin text, p_req bigint) returns void
 language sql security invoker set search_path = '' as $$ select vz_private.vz_admin_dismiss(p_admin, p_req) $$;
 create or replace function public.vz_og_list(p_token text) returns jsonb
@@ -480,6 +496,7 @@ grant execute on function public.vz_save_card(text, jsonb, text, text, boolean, 
 grant execute on function public.vz_pay_request(text, int), vz_private.vz_pay_request(text, int) to anon, authenticated;
 grant execute on function public.vz_admin_lists(text), vz_private.vz_admin_lists(text) to anon, authenticated;
 grant execute on function public.vz_admin_dismiss(text, bigint), vz_private.vz_admin_dismiss(text, bigint) to anon, authenticated;
+grant execute on function public.vz_admin_issue_key(text, uuid), vz_private.vz_admin_issue_key(text, uuid) to anon, authenticated;
 grant execute on function public.vz_og_list(text), vz_private.vz_og_list(text) to anon, authenticated;
 grant execute on function public.vz_delete_card(text), vz_private.vz_delete_card(text) to anon, authenticated;
 grant execute on function public.vz_my_stats(text), vz_private.vz_my_stats(text) to anon, authenticated;

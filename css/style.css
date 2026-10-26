@@ -522,3 +522,4 @@ details.more>.f{padding:4px 14px 16px}
 .linkrow .inp{min-width:0;flex:1 1 auto;width:auto}.linkrow .btn{flex:none}
 .pro-box,.pro-box>*,.pro-box label,.slugrow{min-width:0}.slugrow b{flex:0 1 auto;min-width:0}
 .keyrow{display:flex;gap:8px}.keyrow .inp{flex:1 1 auto;min-width:0}.keyrow .eye{flex:none;width:52px;padding:0;font-size:20px}
+.hc-media .hc-pro{position:absolute;right:14px;top:14px;padding:5px 11px;border-radius:999px;background:linear-gradient(135deg,#ffd76a,#ff9f43);color:#2a1700;font-size:11px;font-weight:800;letter-spacing:.02em;box-shadow:0 6px 18px -6px rgba(255,170,60,.7)}

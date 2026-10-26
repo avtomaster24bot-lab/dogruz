@@ -447,7 +447,7 @@
     if (d.pr) pills += '<span class="pill price">' + esc(priceText(d)) + '</span>';
     return '<div class="hero-card">' +
       '<div class="hc-media"><img class="veh" src="' + vehicleImg(d) + '" alt="" width="520" height="319" decoding="async">' +
-      '<span class="hc-tag">' + esc(t('tag')) + '</span>' + (d.x ? '<span class="hc-demo">' + esc(t('demo')) + '</span>' : '') +
+      '<span class="hc-tag">' + esc(t('tag')) + '</span>' + (opts.badge ? '<span class="hc-pro">' + esc(opts.badge) + '</span>' : '') + (d.x ? '<span class="hc-demo">' + esc(t('demo')) + '</span>' : '') +
       '<div class="av"><span>' + esc(initials(name)) + '</span>' +
       (ph ? '<img src="' + esc(ph) + '" alt="" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</div></div>' +
       '<h1 class="hc-name">' + esc(name) + '</h1>' +

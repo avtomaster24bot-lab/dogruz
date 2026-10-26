@@ -42,7 +42,10 @@ def page(c):
     if c.get('pr'):
         bits.append('от ' + fmt_num(c['pr']) + ' ₸ ' + ('в час' if str(c.get('pu')) == '1' else 'за рейс'))
     desc = ' · '.join(bits + ['Заказ в WhatsApp в один клик'])
-    if c.get('photo'):
+    own = 'img/own/' + re.sub(r'\D', '', str(c.get('p') or '')) + '.jpg'
+    if c.get('p') and os.path.isfile(os.path.join(ROOT, own)):
+        img, iw, ih = SITE + own, 1040, 638
+    elif c.get('photo'):
         img, iw, ih = URL + '/storage/v1/object/public/vz_photos/' + c['photo'], 256, 256
     elif c.get('veh') in VEH:
         img, iw, ih = SITE + 'img/og-' + c['veh'] + '.jpg', 1200, 630

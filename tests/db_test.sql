@@ -90,5 +90,13 @@ insert into public.vz_settings values ('og_token_hash', vz_private.vz_hash('ogto
 set role anon;
 select 'og', jsonb_array_length(public.vz_og_list('ogtoken-ooooooooooooooooooooooooooooooooooo')), public.vz_og_list('ogtoken-ooooooooooooooooooooooooooooooooooo')->0->>'slug';
 select 'reserved tools', public.vz_slug_free('tools');
+-- ключ из админки
+select pg_temp.expect_err($$select public.vz_admin_issue_key('k2-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', gen_random_uuid())$$, 'Нет прав');
+select set_config('vz.nk', public.vz_admin_issue_key(:KA, (public.vz_admin_find(:KA, 'Новый2')->0->>'id')::uuid), false);
+select 'issued', length(current_setting('vz.nk')), public.vz_me(current_setting('vz.nk'))->>'pro', public.vz_me(:K4) is null;
+reset role;
+update public.vz_cards set pro_until = '2099-12-31' where key_hash = vz_private.vz_hash(current_setting('vz.nk'));
+set role anon;
+select 'lifetime', public.vz_me(current_setting('vz.nk'))->>'lifetime';
 reset role;
 select 'ALL DONE';

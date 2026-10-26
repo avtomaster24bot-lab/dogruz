@@ -85,12 +85,13 @@
       (r.tg ? ' <span class="muted">@' + esc(r.tg) + '</span>' : '') + '<br>' +
       '<span class="muted">' + esc([r.c, r.city].filter(Boolean).join(' · ')) + '</span><br>' +
       (r.slug ? '<a href="' + esc(C.shortUrl(r.slug)) + '" target="_blank">/' + esc(r.slug) + '</a>' : '<span class="muted">без адреса</span>') +
-      ' · <span class="pro-st ' + (pro ? 'ok' : 'off') + '">' + (pro ? 'Про до ' + dt(r.pro_until) + (r.is_paid ? '' : ' (пробный)') : 'без Про') + '</span>' +
+      ' · <span class="pro-st ' + (pro ? 'ok' : 'off') + '">' + (r.lifetime ? '★ Про бессрочно' : pro ? 'Про до ' + dt(r.pro_until) + (r.is_paid ? '' : ' (пробный)') : 'без Про') + '</span>' +
       ' · просмотров за 30 дн.: ' + (r.views30 || 0) + (r.refs ? ' · пригласил: ' + r.refs : '') + (r.is_blocked ? ' · <b class="err-msg">скрыта</b>' : '') + (r.is_published ? '' : ' · не в каталоге') +
       ' · создана ' + dt(r.created_at) + '</div>' +
       '<div class="adm-act"><button class="btn btn-grad btn-sm" data-m="1">+1 мес</button><button class="btn btn-glass btn-sm" data-m="3">+3 мес</button>' +
       '<button class="btn btn-glass btn-sm" data-m="12">+12 мес</button><button class="lnk" data-m="0">Отключить Про</button>' +
       '<button class="lnk" data-block="' + (r.is_blocked ? 0 : 1) + '">' + (r.is_blocked ? 'Показать' : 'Скрыть') + '</button>' +
+      '<button class="btn btn-glass btn-sm" data-cab="' + esc(r.slug || '') + '">Открыть кабинет на этом устройстве</button>' +
       '<button class="lnk" data-log="1">История</button><button class="lnk" data-del="1">Удалить</button></div></article>';
   }
   function ago(s) { var m = Math.round((Date.now() - new Date(s)) / 60000); return m < 60 ? m + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : dt(s); }
@@ -133,6 +134,14 @@
       call('vz_admin_extend', { p_card: id, p_months: m, p_note: note }).then(function (r) {
         V.toast(m ? 'Про продлён до ' + dt(r.pro_until) : 'Про отключён'); find(); stats(); lists();
       }, function (er) { V.toast(er.message); });
+    } else if (b.dataset.cab !== undefined) {
+      if (!confirm('Открыть кабинет этой визитки на этом телефоне?\n\nТелефон получит новый ключ доступа. Старый ключ (на других телефонах) перестанет работать.')) return;
+      b.disabled = true; b.textContent = 'Открываю…';
+      call('vz_admin_issue_key', { p_card: id }).then(function (k) {
+        if (!C.setKey(k)) throw new Error('Не удалось сохранить ключ');
+        C.ls('vezu-cloud-slug', b.dataset.cab || null);
+        location.href = 'new.html?cab=1';
+      }).catch(function (er) { b.disabled = false; b.textContent = 'Открыть кабинет на этом устройстве'; V.toast(er.message); });
     } else if (b.dataset.dismiss) {
       call('vz_admin_dismiss', { p_req: +b.closest('[data-req]').dataset.req }).then(function () { V.toast('Заявка убрана'); lists(); }, function (er) { V.toast(er.message); });
     } else if (b.dataset.remind) {

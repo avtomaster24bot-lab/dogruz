@@ -60,7 +60,7 @@
   function dayWord(n) { var a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'день' : a >= 2 && a <= 4 && (b < 10 || b >= 20) ? 'дня' : 'дней'; }
   function warnHtml() {
     var n = daysLeft();
-    if (card.is_blocked || n > 3) return '';
+    if (card.is_blocked || card.lifetime || n > 3) return '';
     var txt = card.pro ? (n <= 1 ? '<b>Про заканчивается завтра</b>' : '<b>Про заканчивается через ' + n + ' ' + dayWord(n) + '</b>') +
         ' (' + dt(card.pro_until) + '). После этого клиенты перестанут видеть фото, а вы пропадёте из каталога.'
       : '<b>Про закончился.</b> Фото, каталог и статистика выключены. Визитка и короткий адрес работают.';
@@ -81,7 +81,7 @@
     var pro = card.pro, until = card.pro_until ? dt(card.pro_until) : '';
     var dirty = isDirty(), n = daysLeft();
     box.innerHTML = '<h3>ВЕЗУ Про</h3>' + warnHtml() +
-      '<p class="pro-st ' + (pro ? 'ok' : 'off') + '">' + (pro ? 'Про активен до ' + until + (n > 3 ? ' (ещё ' + n + ' ' + dayWord(n) + ')' : '') + (card.paid ? '' : ' · пробный период') : 'Про закончился ' + until + ' — визитка работает без Про-функций') + '</p>' +
+      '<p class="pro-st ' + (pro ? 'ok' : 'off') + '">' + (pro ? card.lifetime ? '★ Про · бессрочно' : 'Про активен до ' + until + (n > 3 ? ' (ещё ' + n + ' ' + dayWord(n) + ')' : '') + (card.paid ? '' : ' · пробный период') : 'Про закончился ' + until + ' — визитка работает без Про-функций') + '</p>' +
       (card.is_blocked ? '<p class="err-msg">Визитка скрыта администратором. Напишите в поддержку ВЕЗУ.</p>' : '') +
       (card.slug ? '<div class="linkrow"><input class="inp" readonly value="' + esc(C.shortUrl(card.slug)) + '" aria-label="Короткий адрес"><button class="btn btn-glass" type="button" id="scopy" aria-label="Копировать"><svg><use href="#i-link"/></svg></button>' +
         '<button class="btn btn-glass" type="button" id="sshare" aria-label="Поделиться"><svg><use href="#i-share"/></svg></button></div>' : '') +
@@ -89,7 +89,7 @@
       (pro ? slugField(card.slug || '') : '') + pubField(card.is_published) +
       '<button type="button" class="btn ' + (dirty ? 'btn-grad' : 'btn-glass') + ' btn-block" id="psave">Сохранить в облаке</button>' +
       '<div class="pro-stats"><h4>Моя статистика</h4><div id="pstats">' + (pro ? statsHtml() : '<p class="muted">Статистика доступна с Про.</p>') + '</div></div>' +
-      '<button type="button" class="btn btn-wa btn-block" data-pay="1"><svg><use href="#i-wa"/></svg>' + (pro ? 'Продлить Про' : 'Подключить Про') + ' · ' + PRICE + '</button>' +
+      (card.lifetime ? '' : '<button type="button" class="btn btn-wa btn-block" data-pay="1"><svg><use href="#i-wa"/></svg>' + (pro ? 'Продлить Про' : 'Подключить Про') + ' · ' + PRICE + '</button>') +
       (card.pay_pending ? '<p class="pro-pend">Заявка на продление отправлена — Про продлим после проверки оплаты.</p>' : '') +
       refHtml() +
       '<details class="more"><summary>Ключ доступа и другие телефоны</summary><div class="f">' +
@@ -98,7 +98,7 @@
       '<button type="button" class="btn btn-glass btn-sm" id="ksend"><svg><use href="#i-wa"/></svg>Сохранить себе в WhatsApp</button>' +
       '<button type="button" class="lnk" id="pdel">Удалить визитку из облака</button>' +
       '</div></details>';
-    if (pro) { bindSlug(); }
+    if (pro) { bindSlug(); checkSlug(); }
   }
   function render() {
     if (card) renderCard(); else renderNew();
@@ -116,6 +116,7 @@
     var v = inp.value, c = C.slugCheck(v);
     var msg = { bad: 'Латиница, цифры и дефис, 3–20 символов', reserved: 'Этот адрес занят системой' };
     if (!v) { st.textContent = card ? 'Без короткого адреса' : ''; st.className = 'slugst'; return; }
+    if (card && v === card.slug) { st.textContent = 'Ваш адрес ✓'; st.className = 'slugst ok'; return; }
     if (c !== 'ok') { st.textContent = msg[c]; st.className = 'slugst bad'; return; }
     st.textContent = 'Проверяем…'; st.className = 'slugst';
     C.rpc('vz_slug_free', { p_slug: v, p_key: C.key() }).then(function (r) {
@@ -145,7 +146,7 @@
     var d = B.data();
     if (!d.n || !d.p) { V.toast('Сначала укажите имя и номер WhatsApp'); document.querySelector('[data-go="1"]').click(); return; }
     var inp = document.getElementById('slug'), slug = inp ? inp.value.trim() : null;
-    if (slug && C.slugCheck(slug) !== 'ok') { V.toast('Проверьте короткий адрес'); inp.focus(); return; }
+    if (slug && slug !== (card && card.slug) && C.slugCheck(slug) !== 'ok') { V.toast('Проверьте короткий адрес'); inp.focus(); return; }
     var pub = document.getElementById('pub');
     var first = !card, k = C.key() || C.newKey();
     busy = true; var btn = document.getElementById('psave'); btn.disabled = true; btn.textContent = 'Сохраняем…';
@@ -237,6 +238,8 @@
   C.ready().then(function (ok) {
     if (!ok) return renderSoon();
     if (!C.key()) return renderNew();
-    return C.rpc('vz_me', { p_key: C.key() }).then(function (c) { if (c) adopt(c, false); else renderNew(); }, function () { renderNew(); });
+    // ?cab=1 — кабинет открыт из админки: подставить данные визитки из облака
+    var cab = /[?&]cab=1\b/.test(location.search);
+    return C.rpc('vz_me', { p_key: C.key() }).then(function (c) { if (c) adopt(c, cab); else renderNew(); }, function () { renderNew(); });
   });
 })();
