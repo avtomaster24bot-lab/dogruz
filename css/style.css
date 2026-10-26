@@ -505,3 +505,19 @@ details.more>.f{padding:4px 14px 16px}
 .made[hidden]{display:none}
 @media (max-width:440px){.topnav{gap:10px}.topnav>a:not(.btn){font-size:14px}.topnav .btn-sm{padding-left:12px;padding-right:12px}.top .logo small{max-width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 @media (max-width:440px){.topnav>a:not(.btn)+a:not(.btn){display:none}}
+/* v6: оплата, приглашения, напоминания */
+.pay-steps{margin:0;padding-left:22px;display:grid;gap:10px}
+.pay-steps li{padding-left:4px}
+.pay-steps .btn{margin-top:8px}
+.pro-warn{border:1px solid rgba(255,190,80,.45);background:rgba(255,170,40,.12);color:var(--ink);border-radius:16px;padding:12px 14px;font-size:14px;line-height:1.45;display:grid;gap:8px}
+.pro-warn.off{border-color:rgba(255,110,110,.45);background:rgba(255,80,80,.1)}
+.pro-pend{font-size:13px;color:var(--muted);text-align:center;margin:-4px 0 0}
+.pro-ref{border-top:1px solid var(--line);padding-top:14px;display:grid;gap:10px}
+.pro-ref h4{margin:0}
+.pro-ref .row2{display:flex;gap:8px;flex-wrap:wrap}
+.adm-sec{display:grid;gap:10px;margin:14px 0}
+.adm-sec h3{margin:0;font-size:17px}
+.adm-sec .empty{font-size:14px;color:var(--muted)}
+.pay-steps b{white-space:nowrap}.pay-steps .btn{display:flex;width:max-content}
+.linkrow .inp{min-width:0;flex:1 1 auto;width:auto}.linkrow .btn{flex:none}
+.pro-box,.pro-box>*,.pro-box label,.slugrow{min-width:0}.slugrow b{flex:0 1 auto;min-width:0}

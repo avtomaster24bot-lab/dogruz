@@ -57,5 +57,38 @@ select 'blocked', public.vz_card('aslan') is null, jsonb_array_length(public.vz_
 select 'delete own', public.vz_delete_card(:K2), public.vz_me(:K2);
 select public.vz_admin_delete(:KA, (public.vz_admin_find(:KA, 'aslan')->0->>'id')::uuid);
 select 'after admin delete', jsonb_array_length(public.vz_admin_find(:KA, ''));
+
+-- v6: приглашения, оплата, списки, превью
+\set K3 '''k3-ddddddddddddddddddddddddddddddddddddddddd'''
+\set K4 '''k4-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'''
+select 'ref1', (public.vz_save_card(:K1, '{"n":"Реф","p":"77011110000"}', 'refer') ->> 'ref_code') ~ '^[0-9a-f]{8}$';
+select set_config('vz.ref', public.vz_me(:K1)->>'ref_code', false);
+select set_config('vz.until0', public.vz_me(:K1)->>'pro_until', false);
+select 'invited', public.vz_save_card(:K3, '{"n":"Новый","p":"77012220000"}', null, '', true, current_setting('vz.ref')) ->> 'pro';
+select 'ref +7d', (public.vz_me(:K1)->>'pro_until')::timestamptz - current_setting('vz.until0')::timestamptz between interval '6 days 23 hours' and interval '7 days 1 minute', public.vz_me(:K1)->>'ref_count';
+-- тот же номер заново (удалить и создать) — второй награды нет
+select public.vz_delete_card(:K3);
+select set_config('vz.until1', public.vz_me(:K1)->>'pro_until', false);
+select public.vz_save_card(:K4, '{"n":"Новый2","p":"77012220000"}', null, '', true, current_setting('vz.ref')) is not null;
+select 'no double reward', public.vz_me(:K1)->>'pro_until' = current_setting('vz.until1');
+select 'bad ref ignored', public.vz_save_card('k5-fffffffffffffffffffffffffffffffffffffffff', '{"n":"Без","p":"77013330000"}', null, '', true, 'zzzz') is not null;
+select 'self ref ignored', public.vz_save_card(:K1, '{"n":"Реф","p":"77011110000"}', null, '', true, current_setting('vz.ref'))->>'ref_count';
+-- оплата
+select pg_temp.expect_err($$select public.vz_pay_request('nokeynokeynokeynokeynokeynokeynokey', 1)$$, 'Сначала');
+select 'pay', public.vz_pay_request(:K4, 3), public.vz_pay_request(:K4, 1), public.vz_me(:K4)->>'pay_pending';
+select pg_temp.expect_err($$select public.vz_admin_lists('k2-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')$$, 'Нет прав');
+select 'lists', jsonb_array_length(public.vz_admin_lists(:KA)->'requests'), public.vz_admin_lists(:KA)->'requests'->0->>'req_months';
+select public.vz_admin_extend(:KA, (public.vz_admin_lists(:KA)->'requests'->0->>'id')::uuid, 1, 'kaspi') is not null;
+select 'req closed', jsonb_array_length(public.vz_admin_lists(:KA)->'requests'), public.vz_me(:K4)->>'pay_pending';
+select public.vz_pay_request(:K4, 1); select public.vz_admin_dismiss(:KA, (public.vz_admin_lists(:KA)->'requests'->0->>'req_id')::bigint);
+select 'dismissed', jsonb_array_length(public.vz_admin_lists(:KA)->'requests');
+select 'expiring', jsonb_array_length(public.vz_admin_lists(:KA)->'expiring');
+-- превью: без токена нельзя
+select pg_temp.expect_err($$select public.vz_og_list('nokeynokeynokeynokeynokeynokeynokey')$$, 'Нет прав');
+reset role;
+insert into public.vz_settings values ('og_token_hash', vz_private.vz_hash('ogtoken-ooooooooooooooooooooooooooooooooooo'));
+set role anon;
+select 'og', jsonb_array_length(public.vz_og_list('ogtoken-ooooooooooooooooooooooooooooooooooo')), public.vz_og_list('ogtoken-ooooooooooooooooooooooooooooooooooo')->0->>'slug';
+select 'reserved tools', public.vz_slug_free('tools');
 reset role;
 select 'ALL DONE';

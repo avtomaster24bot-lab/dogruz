@@ -68,7 +68,24 @@
         });
       }, function (e) { throw new Error(human(e && e.message)); });
   }
-  function uploadPhoto(dataUrl) { return photoCall({ key: key(), image: dataUrl }); }
+  // JPEG-копия для превью ссылок (WhatsApp/Telegram не везде показывают WebP)
+  function toJpeg(dataUrl) {
+    return new Promise(function (ok) {
+      var im = new Image();
+      im.onload = function () {
+        try {
+          var cv = document.createElement('canvas'); cv.width = im.naturalWidth; cv.height = im.naturalHeight;
+          var g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(im, 0, 0);
+          ok(cv.toDataURL('image/jpeg', 0.85));
+        } catch (e) { ok(null); }
+      };
+      im.onerror = function () { ok(null); };
+      im.src = dataUrl;
+    });
+  }
+  function uploadPhoto(dataUrl) {
+    return toJpeg(dataUrl).then(function (og) { return photoCall({ key: key(), image: dataUrl, og: og && /^data:image\/jpeg/.test(og) ? og : undefined }); });
+  }
   function removePhoto() { return photoCall({ key: key(), remove: true }); }
   function adminPhoto(admin, body) { return photoCall(Object.assign({ admin: admin }, body)).catch(function () { return null; }); }
   function photoUrl(path) { return path ? BASE + '/storage/v1/object/public/vz_photos/' + path : ''; }
@@ -83,7 +100,7 @@
 
   // ---- адреса ----
   var SLUG_RE = /^[a-z0-9]([a-z0-9-]{1,18})[a-z0-9]$/;
-  var RESERVED = 'admin api app about assets auth card catalog css d demo edit help icons img index js kaspi login logout manifest me new null owner pay pro root settings stats static support sw tarify telegram test undefined vezu whatsapp www 404 supabase tests user driver drivers order orders info privacy terms'.split(' ');
+  var RESERVED = 'admin api app about assets auth card catalog css d demo edit help icons img index js kaspi login logout manifest me new null owner pay pro root settings stats static support sw tarify telegram test undefined vezu whatsapp www 404 supabase tests user driver drivers order orders info privacy terms tools github og p ref pay price help-me'.split(' ');
   function slugCheck(s) { s = String(s || '').toLowerCase().trim(); if (!SLUG_RE.test(s) || s.indexOf('--') >= 0) return 'bad'; if (RESERVED.indexOf(s) >= 0) return 'reserved'; return 'ok'; }
   var TR = { а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i', й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '', э: 'e', ю: 'yu', я: 'ya', ә: 'a', ғ: 'g', қ: 'k', ң: 'n', ө: 'o', ұ: 'u', ү: 'u', һ: 'h', і: 'i' };
   function translit(s) { return String(s || '').toLowerCase().split('').map(function (c) { return TR[c] !== undefined ? TR[c] : c; }).join('').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20).replace(/-+$/, ''); }

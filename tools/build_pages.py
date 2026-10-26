@@ -318,7 +318,7 @@ new=head('Создать визитку водителя — ВЕЗУ','Бесп
 
 <div id="print-area"></div>
 
-{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/config.js','js/cloud.js','js/new.js','js/pro.js')}</body>
+{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/config.js','js/cloud.js','js/new.js','js/pay.js','js/pro.js')}</body>
 </html>
 '''
 open('new.html','w').write(new)
@@ -350,7 +350,7 @@ tar=head('Тарифы и ВЕЗУ Про — визитки водителей'
       <p class="price">1 500 ₸<small>в месяц · первые 7 дней бесплатно</small></p>
       <ul>{li('Короткий адрес: …/dogruz/ваше-имя')}{li('Фото видят все клиенты')}{li('Место в каталоге водителей')}{li('Статистика: просмотры, WhatsApp, звонки')}{li('Без надписи «Сделано на ВЕЗУ»')}</ul>
       <a class="btn btn-grad btn-block" href="new.html">Попробовать 7 дней бесплатно</a>
-      <button type="button" class="btn btn-wa btn-block" data-wa="pro"><svg><use href="#i-wa"/></svg>Оплатить Про (Kaspi)</button>
+      <button type="button" class="btn btn-wa btn-block" id="payPro"><svg><use href="#i-wa"/></svg>Оплатить через Kaspi</button>
     </section>
     <section class="plan glass">
       <h2>Визитки + наклейка</h2>
@@ -367,29 +367,37 @@ tar=head('Тарифы и ВЕЗУ Про — визитки водителей'
       <button type="button" class="btn btn-glass btn-sm" data-wa="partner"><svg><use href="#i-wa"/></svg>Обсудить</button>
     </section>
     <section class="plan glass mini">
-      <h2>Приведи водителя <em class="soon">скоро</em></h2>
-      <p class="muted">Водитель, которого вы пригласили, оплатил Про — вам месяц Про бесплатно. Пока договариваемся вручную через WhatsApp.</p>
-      <button type="button" class="btn btn-glass btn-sm" id="shareApp"><svg><use href="#i-share"/></svg>Рассказать коллеге</button>
+      <h2>Приведи водителя</h2>
+      <p class="muted">Знакомый водитель создал визитку по вашей ссылке и сохранил её в облаке — вам <b>+7 дней Про</b>. За каждого нового водителя (новый номер). Ваша ссылка — в конструкторе: шаг 3 → «ВЕЗУ Про».</p>
+      <p class="fine" id="refInfo" hidden></p>
+      <button type="button" class="btn btn-glass btn-sm" id="shareApp"><svg><use href="#i-share"/></svg>Пригласить водителя</button>
     </section>
   </div>
-  <p class="fine">Про включается в конструкторе: шаг 3 → «ВЕЗУ Про» → «Сохранить в облаке» (регистрация не нужна). Оплата — Kaspi перевод, Про продлевается вручную после оплаты. Если не продлить — визитка-ссылка и короткий адрес продолжают работать, без фото, каталога и статистики. Базовая визитка — бесплатно навсегда.</p>
+  <p class="fine">Про включается в конструкторе: шаг 3 → «ВЕЗУ Про» → «Сохранить в облаке» (регистрация не нужна). Оплата — перевод Kaspi на номер +7 771 410 57 97, затем «Я оплатил»: Про продлеваем вручную, обычно в течение дня. Если не продлить — визитка-ссылка и короткий адрес продолжают работать, без фото, каталога и статистики. Базовая визитка — бесплатно навсегда.</p>
 </main>
 {FOOT}
-{SCRIPTS('js/vendor/inflate.js','js/common.js')}<script>
+{SCRIPTS('js/vendor/inflate.js','js/common.js','js/config.js','js/cloud.js','js/pay.js')}<script>
 (function () {{
-  var V = window.VEZU, mine = '';
+  var V = window.VEZU, C = window.VZC, mine = '', card = null;
   try {{ var d = JSON.parse(localStorage.getItem('vezu-card') || 'null'); if (d && d.n && d.p) mine = V.cardUrl(d); }} catch (e) {{}}
   try {{ var sl = JSON.parse(localStorage.getItem('vezu-cloud-slug') || 'null'); if (sl) mine = location.href.replace(/[^/]*$/, '') + sl; }} catch (e) {{}}
   var T = {{
-    pro: 'Здравствуйте! Хочу оплатить ВЕЗУ Про (1 500 ₸/мес) через Kaspi.',
     print: 'Здравствуйте! Хочу заказать печать визиток и наклейку на машину (ВЕЗУ).',
     partner: 'Здравствуйте! Интересует реклама/партнёрство с ВЕЗУ.'
   }};
   document.querySelectorAll('[data-wa]').forEach(function (b) {{
     b.addEventListener('click', function () {{ V.openWA(V.SITE_PHONE, T[b.dataset.wa] + (mine ? '\\nМоя визитка: ' + mine : '')); }});
   }});
+  function invite() {{ return location.href.replace(/[?#].*$/, '').replace(/[^/]*$/, '') + 'new.html' + (card && card.ref_code ? '?ref=' + card.ref_code : ''); }}
+  if (C && C.key()) C.ready().then(function (ok) {{
+    if (ok) return C.rpc('vz_me', {{ p_key: C.key() }}).then(function (c) {{
+      card = c;
+      if (c && c.ref_code) {{ var el = document.getElementById('refInfo'); el.hidden = false; el.innerHTML = 'Пришло по вашей ссылке: <b>' + (c.ref_count || 0) + '</b>'; }}
+    }});
+  }}).catch(function () {{}});
+  document.getElementById('payPro').addEventListener('click', function () {{ window.VEZU_PAY.open(card); }});
   document.getElementById('shareApp').addEventListener('click', function () {{
-    V.share('ВЕЗУ — визитка водителя', 'Сделай бесплатную визитку водителя с WhatsApp и QR:', location.href.replace(/[^/]*$/, '') + 'new.html');
+    V.share('ВЕЗУ — визитка водителя', 'Сделай бесплатную визитку водителя с WhatsApp и QR:', invite());
   }});
 }})();
 </script>

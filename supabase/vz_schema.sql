@@ -69,6 +69,40 @@ create table if not exists public.vz_pro_log (
 );
 create index if not exists vz_pro_log_card on public.vz_pro_log (card_id);
 
+-- v6: приглашения, заявки на оплату, превью ссылок
+alter table public.vz_cards add column if not exists ref_code text unique;
+alter table public.vz_cards add column if not exists referred_by uuid references public.vz_cards(id) on delete set null;
+alter table public.vz_cards add column if not exists photo_og text;     -- JPEG-копия фото для превью ссылок
+create index if not exists vz_cards_referred_by on public.vz_cards (referred_by);
+
+-- одна награда за приглашение на номер телефона — навсегда (даже если визитку удалят и создадут снова)
+create table if not exists public.vz_ref_log (
+  phone      text primary key,
+  referrer   uuid references public.vz_cards(id) on delete set null,
+  new_card   uuid references public.vz_cards(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists vz_ref_log_referrer on public.vz_ref_log (referrer);
+create index if not exists vz_ref_log_new_card on public.vz_ref_log (new_card);
+
+create table if not exists public.vz_pay_requests (
+  id         bigserial primary key,
+  card_id    uuid not null references public.vz_cards(id) on delete cascade,
+  months     int not null default 1 check (months in (1, 3, 6, 12)),
+  status     text not null default 'new' check (status in ('new', 'done', 'dismissed')),
+  created_at timestamptz not null default now(),
+  closed_at  timestamptz
+);
+create index if not exists vz_pay_requests_open on public.vz_pay_requests (card_id) where status = 'new';
+
+create table if not exists public.vz_settings (key text primary key, value text not null);
+
+alter table public.vz_ref_log      enable row level security;
+alter table public.vz_pay_requests enable row level security;
+alter table public.vz_settings     enable row level security;
+revoke all on public.vz_ref_log, public.vz_pay_requests, public.vz_settings from anon, authenticated;
+revoke all on sequence public.vz_pay_requests_id_seq from anon, authenticated;
+
 alter table public.vz_cards   enable row level security;
 alter table public.vz_events  enable row level security;
 alter table public.vz_admins  enable row level security;
@@ -84,7 +118,8 @@ language sql immutable set search_path = '' as $$
     when p_slug = any (array['admin','api','app','about','assets','auth','card','catalog','css','d','demo','edit',
       'help','icons','img','index','js','kaspi','login','logout','manifest','me','new','null','owner','pay','pro',
       'root','settings','stats','static','support','sw','tarify','telegram','test','undefined','vezu','whatsapp',
-      'www','404','supabase','tests','user','driver','drivers','order','orders','info','privacy','terms']) then 'reserved'
+      'www','404','supabase','tests','user','driver','drivers','order','orders','info','privacy','terms',
+      'tools','github','og','p','ref','pay','price','help-me']) then 'reserved'
     else 'ok' end;
 $$;
 
@@ -97,7 +132,9 @@ language sql stable set search_path = '' as $$
 $$;
 create or replace function vz_private.vz_priv(c public.vz_cards) returns jsonb
 language sql stable set search_path = '' as $$
-  select vz_private.vz_pub(c) || jsonb_build_object('pro_until', c.pro_until, 'is_published', c.is_published, 'is_blocked', c.is_blocked);
+  select vz_private.vz_pub(c) || jsonb_build_object('pro_until', c.pro_until, 'is_published', c.is_published, 'is_blocked', c.is_blocked,
+    'ref_code', c.ref_code, 'ref_count', (select count(*) from public.vz_ref_log r where r.referrer = c.id),
+    'pay_pending', exists (select 1 from public.vz_pay_requests q where q.card_id = c.id and q.status = 'new'));
 $$;
 
 create or replace function vz_private.vz_is_admin(p_admin text) returns boolean
@@ -124,10 +161,13 @@ end $$;
 
 -- Сохранить визитку. Первое сохранение создаёт её и включает Про на 7 дней (пробный период).
 -- p_slug: null — не менять, '' — убрать.
+drop function if exists public.vz_save_card(text, jsonb, text, text, boolean);
+drop function if exists vz_private.vz_save_card(text, jsonb, text, text, boolean);
+-- p_ref: код пригласившего водителя (только для новой визитки, один раз на номер телефона): ему +7 дней Про.
 create or replace function vz_private.vz_save_card(p_key text, p_data jsonb, p_slug text default null, p_veh text default '',
-  p_published boolean default true) returns jsonb
+  p_published boolean default true, p_ref text default null) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare h text := vz_private.vz_hash(p_key); c public.vz_cards; d jsonb := '{}'::jsonb; k text; s text; pro boolean;
+declare h text := vz_private.vz_hash(p_key); c public.vz_cards; d jsonb := '{}'::jsonb; k text; s text; pro boolean; rid uuid;
 begin
   if h is null then raise exception 'Неверный ключ доступа'; end if;
   if jsonb_typeof(p_data) is distinct from 'object' then raise exception 'Нет данных визитки'; end if;
@@ -141,6 +181,9 @@ begin
   if coalesce(p_veh, '') not in ('', 'kabluk', 'gazel', 'gazel-long', 'truck3') then p_veh := ''; end if;
 
   select * into c from public.vz_cards where key_hash = h for update;
+  if c.id is not null and c.ref_code is null then
+    update public.vz_cards set ref_code = substr(md5(random()::text || clock_timestamp()::text || h), 1, 8) where id = c.id returning * into c;
+  end if;
   if c.id is null then
     if (select count(*) from public.vz_cards where created_at > now() - interval '1 hour') >= 60 then
       raise exception 'Слишком много новых визиток, попробуйте через час';
@@ -148,9 +191,19 @@ begin
     if exists (select 1 from public.vz_cards where phone = d->>'p') then
       raise exception 'Визитка с этим номером уже есть в облаке. Откройте её ключом доступа или напишите в поддержку ВЕЗУ';
     end if;
-    insert into public.vz_cards (key_hash, phone, data, city, veh, is_published, pro_until)
-    values (h, d->>'p', d, left(trim(coalesce(d->>'t', '')), 60), coalesce(p_veh, ''), coalesce(p_published, true), now() + interval '7 days')
+    insert into public.vz_cards (key_hash, phone, data, city, veh, is_published, pro_until, ref_code)
+    values (h, d->>'p', d, left(trim(coalesce(d->>'t', '')), 60), coalesce(p_veh, ''), coalesce(p_published, true), now() + interval '7 days',
+            substr(md5(random()::text || clock_timestamp()::text || h), 1, 8))
     returning * into c;
+    -- приглашение: награда пригласившему, если номер раньше не участвовал
+    if coalesce(p_ref, '') ~ '^[0-9a-f]{8}$' then
+      select id into rid from public.vz_cards where ref_code = p_ref and id <> c.id and not is_blocked;
+      if rid is not null and not exists (select 1 from public.vz_ref_log where phone = c.phone) then
+        insert into public.vz_ref_log (phone, referrer, new_card) values (c.phone, rid, c.id);
+        update public.vz_cards set pro_until = greatest(coalesce(pro_until, now()), now()) + interval '7 days' where id = rid;
+        update public.vz_cards set referred_by = rid where id = c.id returning * into c;
+      end if;
+    end if;
   else
     if exists (select 1 from public.vz_cards where phone = d->>'p' and id <> c.id) then
       raise exception 'Этот номер уже привязан к другой визитке в облаке';
@@ -236,16 +289,22 @@ begin
 end $$;
 
 -- ---------- админ (по ключу админа) ----------
+create or replace function vz_private.vz_admin_row(c public.vz_cards) returns jsonb
+language sql stable set search_path = '' as $$
+  select jsonb_build_object('id', c.id, 'slug', c.slug, 'n', c.data->>'n', 'p', c.phone, 'c', c.data->>'c', 'tg', c.data->>'tg',
+    'city', c.city, 'pro_until', c.pro_until, 'is_paid', c.is_paid, 'is_published', c.is_published,
+    'is_blocked', c.is_blocked, 'created_at', c.created_at, 'photo', c.photo_path,
+    'refs', (select count(*) from public.vz_ref_log r where r.referrer = c.id),
+    'views30', (select count(*) from public.vz_events e where e.card_id = c.id and e.kind = 'view' and e.day > current_date - 30));
+$$;
+
 create or replace function vz_private.vz_admin_find(p_admin text, p_q text default '') returns jsonb
 language plpgsql stable security definer set search_path = '' as $$
 declare q text := trim(coalesce(p_q, '')); dig text := regexp_replace(coalesce(p_q, ''), '\D', '', 'g');
 begin
   if not vz_private.vz_is_admin(p_admin) then raise exception 'Нет прав' using errcode = '42501'; end if;
   return (select coalesce(jsonb_agg(j order by created_at desc), '[]'::jsonb) from (
-    select jsonb_build_object('id', c.id, 'slug', c.slug, 'n', c.data->>'n', 'p', c.phone, 'c', c.data->>'c', 'tg', c.data->>'tg',
-      'city', c.city, 'pro_until', c.pro_until, 'is_paid', c.is_paid, 'is_published', c.is_published,
-      'is_blocked', c.is_blocked, 'created_at', c.created_at, 'photo', c.photo_path,
-      'views30', (select count(*) from public.vz_events e where e.card_id = c.id and e.kind = 'view' and e.day > current_date - 30)) j,
+    select vz_private.vz_admin_row(c) j,
       c.created_at
     from public.vz_cards c
     where q = '' or c.data->>'n' ilike '%' || q || '%' or c.slug ilike '%' || q || '%'
@@ -267,6 +326,9 @@ begin
   where id = p_card returning * into c;
   if c.id is null then raise exception 'Визитка не найдена'; end if;
   insert into public.vz_pro_log (card_id, months, pro_until, note) values (c.id, p_months, c.pro_until, left(coalesce(p_note, ''), 200));
+  if p_months > 0 then
+    update public.vz_pay_requests set status = 'done', closed_at = now() where card_id = c.id and status = 'new';
+  end if;
   return jsonb_build_object('id', c.id, 'pro_until', c.pro_until, 'is_paid', c.is_paid);
 end $$;
 
@@ -304,6 +366,53 @@ begin
     'views7', (select count(*) from public.vz_events where kind = 'view' and day > current_date - 7));
 end $$;
 
+-- ---------- v6: оплата, списки админа, превью ссылок ----------
+-- Водитель нажал «Я оплатил» — заявка для админа (одна открытая заявка на визитку).
+create or replace function vz_private.vz_pay_request(p_key text, p_months int default 1) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare cid uuid;
+begin
+  if p_months not in (1, 3, 6, 12) then raise exception 'Срок: 1, 3, 6 или 12 месяцев'; end if;
+  select id into cid from public.vz_cards where key_hash = vz_private.vz_hash(p_key);
+  if cid is null then raise exception 'Сначала сохраните визитку в облаке'; end if;
+  update public.vz_pay_requests set months = p_months, created_at = now() where card_id = cid and status = 'new';
+  if not found then insert into public.vz_pay_requests (card_id, months) values (cid, p_months); end if;
+  return true;
+end $$;
+
+-- Заявки на продление и визитки, у которых Про скоро закончится (≤ 3 дня) или закончился за последние 7 дней.
+create or replace function vz_private.vz_admin_lists(p_admin text) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not vz_private.vz_is_admin(p_admin) then raise exception 'Нет прав' using errcode = '42501'; end if;
+  return jsonb_build_object(
+    'requests', (select coalesce(jsonb_agg(vz_private.vz_admin_row(c) || jsonb_build_object('req_id', q.id, 'req_months', q.months, 'req_at', q.created_at)
+                   order by q.created_at), '[]'::jsonb)
+                 from public.vz_pay_requests q join public.vz_cards c on c.id = q.card_id where q.status = 'new'),
+    'expiring', (select coalesce(jsonb_agg(vz_private.vz_admin_row(c) order by c.pro_until), '[]'::jsonb)
+                 from public.vz_cards c where c.pro_until between now() - interval '7 days' and now() + interval '3 days' and not c.is_blocked));
+end $$;
+
+create or replace function vz_private.vz_admin_dismiss(p_admin text, p_req bigint) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not vz_private.vz_is_admin(p_admin) then raise exception 'Нет прав' using errcode = '42501'; end if;
+  update public.vz_pay_requests set status = 'dismissed', closed_at = now() where id = p_req and status = 'new';
+end $$;
+
+-- Данные для статических страниц-превью …/dogruz/<адрес>/ (их собирает GitHub Actions по токену из vz_settings).
+create or replace function vz_private.vz_og_list(p_token text) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if coalesce(vz_private.vz_hash(p_token), '-') is distinct from (select value from public.vz_settings where key = 'og_token_hash') then
+    raise exception 'Нет прав' using errcode = '42501';
+  end if;
+  return (select coalesce(jsonb_agg(jsonb_build_object('slug', c.slug, 'n', c.data->>'n', 'c', c.data->>'c', 'w', c.data->>'w',
+      't', c.data->>'t', 'pr', c.data->>'pr', 'pu', c.data->>'pu', 'veh', c.veh,
+      'photo', case when c.pro_until > now() then c.photo_og end) order by c.slug), '[]'::jsonb)
+    from public.vz_cards c where c.slug is not null and not c.is_blocked);
+end $$;
+
 -- ---------- API: обёртки в public (security invoker) ----------
 -- старые версии (security definer прямо в public) — убрать
 do $$ declare f record; begin
@@ -320,8 +429,16 @@ create or replace function public.vz_me(p_key text) returns jsonb
 language sql security invoker set search_path = '' as $$ select vz_private.vz_me(p_key) $$;
 create or replace function public.vz_slug_free(p_slug text, p_key text default null) returns text
 language sql security invoker set search_path = '' as $$ select vz_private.vz_slug_free(p_slug, p_key) $$;
-create or replace function public.vz_save_card(p_key text, p_data jsonb, p_slug text default null, p_veh text default '', p_published boolean default true) returns jsonb
-language sql security invoker set search_path = '' as $$ select vz_private.vz_save_card(p_key, p_data, p_slug, p_veh, p_published) $$;
+create or replace function public.vz_save_card(p_key text, p_data jsonb, p_slug text default null, p_veh text default '', p_published boolean default true, p_ref text default null) returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_save_card(p_key, p_data, p_slug, p_veh, p_published, p_ref) $$;
+create or replace function public.vz_pay_request(p_key text, p_months int default 1) returns boolean
+language sql security invoker set search_path = '' as $$ select vz_private.vz_pay_request(p_key, p_months) $$;
+create or replace function public.vz_admin_lists(p_admin text) returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_admin_lists(p_admin) $$;
+create or replace function public.vz_admin_dismiss(p_admin text, p_req bigint) returns void
+language sql security invoker set search_path = '' as $$ select vz_private.vz_admin_dismiss(p_admin, p_req) $$;
+create or replace function public.vz_og_list(p_token text) returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_og_list(p_token) $$;
 create or replace function public.vz_delete_card(p_key text) returns boolean
 language sql security invoker set search_path = '' as $$ select vz_private.vz_delete_card(p_key) $$;
 create or replace function public.vz_my_stats(p_key text) returns jsonb
@@ -359,7 +476,11 @@ end $$;
 grant execute on function public.vz_ping() to anon, authenticated;
 grant execute on function public.vz_me(text), vz_private.vz_me(text) to anon, authenticated;
 grant execute on function public.vz_slug_free(text, text), vz_private.vz_slug_free(text, text) to anon, authenticated;
-grant execute on function public.vz_save_card(text, jsonb, text, text, boolean), vz_private.vz_save_card(text, jsonb, text, text, boolean) to anon, authenticated;
+grant execute on function public.vz_save_card(text, jsonb, text, text, boolean, text), vz_private.vz_save_card(text, jsonb, text, text, boolean, text) to anon, authenticated;
+grant execute on function public.vz_pay_request(text, int), vz_private.vz_pay_request(text, int) to anon, authenticated;
+grant execute on function public.vz_admin_lists(text), vz_private.vz_admin_lists(text) to anon, authenticated;
+grant execute on function public.vz_admin_dismiss(text, bigint), vz_private.vz_admin_dismiss(text, bigint) to anon, authenticated;
+grant execute on function public.vz_og_list(text), vz_private.vz_og_list(text) to anon, authenticated;
 grant execute on function public.vz_delete_card(text), vz_private.vz_delete_card(text) to anon, authenticated;
 grant execute on function public.vz_my_stats(text), vz_private.vz_my_stats(text) to anon, authenticated;
 grant execute on function public.vz_card(text), vz_private.vz_card(text) to anon, authenticated;
@@ -385,3 +506,5 @@ on conflict (id) do update set public = excluded.public, file_size_limit = exclu
 -- ---------- админ (заполнить вручную) ----------
 -- Ключ админа — случайная строка 43 символа (A-Z a-z 0-9 _ -). В базе хранится только её SHA-256:
 -- insert into public.vz_admins (key_hash, note) values (vz_private.vz_hash('<ключ>'), 'владелец') on conflict do nothing;
+-- Токен для GitHub Actions (страницы-превью): секрет репозитория VZ_OG_TOKEN, в базе — его SHA-256:
+-- insert into public.vz_settings (key, value) values ('og_token_hash', vz_private.vz_hash('<токен>')) on conflict (key) do update set value = excluded.value;
