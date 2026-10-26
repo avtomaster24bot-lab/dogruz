@@ -34,10 +34,10 @@ def fmt_num(s):
 def page(c):
     slug = c['slug']
     name = (c.get('n') or 'Водитель').strip()[:40]
-    car = (c.get('c') or '').strip() or VEH.get(c.get('veh') or '', ('', ''))[0]
+    car = (c.get('c') or '').strip()   # тип машины по весу не угадываем — только то, что написал водитель
     w = (c.get('w') or '').strip() or VEH.get(c.get('veh') or '', ('', ''))[1]
     city = (c.get('t') or '').strip()
-    title = name + ' — грузоперевозки' + (', ' + ' '.join(x for x in [car, w] if x) if car or w else '')
+    title = name + ' — грузоперевозки' + (', ' + car + (' ' + w if w else '') if car else (' до ' + w if w else ''))
     bits = [x for x in [city] if x]
     if c.get('pr'):
         bits.append('от ' + fmt_num(c['pr']) + ' ₸ ' + ('в час' if str(c.get('pu')) == '1' else 'за рейс'))
