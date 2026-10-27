@@ -116,7 +116,7 @@
     a.forEach(function (x) {
       C.rpc('vz_card', { p_slug: x.slug }).then(function (r) {
         if (!r) return; var si = V.statusInfo(r.status), el = box.querySelector('[data-st="' + x.slug + '"]');
-        if (el) el.innerHTML = (si ? '<span class="st-' + si.s + '"><i></i>' + esc(si.short) + '</span>' : '') + (r.rating && r.rating.n ? ' ★ ' + String(r.rating.avg).replace('.', ',') : '');
+        if (el) el.innerHTML = (si ? '<span class="st-' + si.s + '"><i></i>' + esc(si.short) + '</span>' : '') + (V.reviewsOn() && r.rating && r.rating.n ? ' ★ ' + String(r.rating.avg).replace('.', ',') : '');
       }, function () {});
     });
   }
@@ -136,7 +136,7 @@
   function respHtml(o, r) {
     var chosen = o.taken === r.slug;
     return '<div class="resp' + (chosen ? ' chosen' : '') + '"><a class="resp-h" href="' + esc(C.shortUrl(r.slug)) + '"><i class="cat-av">' + (r.photo ? '<img src="' + esc(C.photoUrl(r.photo)) + '" alt="" onerror="this.remove()">' : '') + '<b>' + esc(V.initials(r.n)) + '</b></i>' +
-      '<span><b>' + esc(r.n) + (chosen ? ' · выбран' : '') + '</b><small>' + esc([r.c, r.w].filter(Boolean).join(' · ')) + (r.rating && r.rating.n ? ' · ★ ' + String(r.rating.avg).replace('.', ',') : '') + '</small></span>' +
+      '<span><b>' + esc(r.n) + (chosen ? ' · выбран' : '') + '</b><small>' + esc([r.c, r.w].filter(Boolean).join(' · ')) + (V.reviewsOn() && r.rating && r.rating.n ? ' · ★ ' + String(r.rating.avg).replace('.', ',') : '') + '</small></span>' +
       (r.price ? '<em class="resp-p">' + V.fmtNum(r.price) + ' ₸</em>' : '') + '</a>' +
       (r.comment ? '<p class="resp-c">«' + esc(r.comment) + '»</p>' : '') +
       '<div class="resp-b"><a class="btn btn-wa btn-sm" href="#" data-wa="' + esc(r.p) + '" data-n="' + esc(r.n) + '"><svg><use href="#i-wa"/></svg>WhatsApp</a><a class="btn btn-glass btn-sm" href="tel:+' + esc(r.p) + '"><svg><use href="#i-phone"/></svg>Звонок</a>' +
@@ -157,7 +157,7 @@
         '<h3>' + esc(o.what || 'Перевозка') + '</h3>' + route(o) + facts(o) + (est(o.calc) ? '<p class="o-est">' + est(o.calc) + '</p>' : '') +
         (o.scope === 'picked' ? '<p class="fine">Только для: ' + esc((o.targets || []).join(', ')) + '</p>' : '') +
         (o.responses.length ? o.responses.map(function (r) { return respHtml(o, r); }).join('') : o.state === 'open' ? '<p class="muted wait">Ждём отклики водителей… Страница обновляется сама.</p>' : '') +
-        (o.state === 'taken' && !o.review_issued ? '<button type="button" class="btn btn-glass btn-block" data-rev="' + o.id + '"><svg><use href="#i-star"/></svg>Оставить отзыв водителю</button>' : '') +
+        (V.reviewsOn() && o.state === 'taken' && !o.review_issued ? '<button type="button" class="btn btn-glass btn-block" data-rev="' + o.id + '"><svg><use href="#i-star"/></svg>Оставить отзыв водителю</button>' : '') +
         (o.state === 'open' || o.state === 'taken' ? '<button type="button" class="lnk" data-cancel="' + o.id + '">Отменить заказ</button>' : '') + '</article>';
     }).join('') : '<div class="empty glass"><h2>Заказов пока нет</h2><p class="muted">Опишите груз — водители ответят здесь со своей ценой.</p><a class="btn btn-grad" href="#order">Новый заказ</a></div>';
   }

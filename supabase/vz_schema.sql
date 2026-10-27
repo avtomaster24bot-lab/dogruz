@@ -174,6 +174,13 @@ $$;
 
 create or replace function public.vz_ping() returns int language sql stable set search_path = '' as $$ select 3 $$;
 
+-- Отзывы включены? Флаг в vz_settings: reviews_enabled = 'true'. Нет записи — выключены (данные в базе сохраняются).
+-- Включить: insert into public.vz_settings values ('reviews_enabled', 'true') on conflict (key) do update set value = 'true';
+create or replace function vz_private.vz_reviews_on() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select coalesce((select value = 'true' from public.vz_settings where key = 'reviews_enabled'), false);
+$$;
+
 -- Статус: показываем, только если водитель обновлял его за последние 24 часа. «Занят до» по истечении — снова «Свободен».
 create or replace function vz_private.vz_status(c public.vz_cards) returns jsonb
 language sql stable set search_path = '' as $$
@@ -190,7 +197,7 @@ language sql stable set search_path = '' as $$
     'lifetime', coalesce(c.pro_until > now() + interval '50 years', false),
     'status', vz_private.vz_status(c),
     'rating', (select jsonb_build_object('avg', round(avg(r.stars)::numeric, 1), 'n', count(*)) from public.vz_reviews r
-               where r.card_id = c.id and r.status = 'pub' having count(*) > 0));
+               where r.card_id = c.id and r.status = 'pub' and vz_private.vz_reviews_on() having count(*) > 0));
 $$;
 create or replace function vz_private.vz_priv(c public.vz_cards) returns jsonb
 language sql stable set search_path = '' as $$
@@ -530,7 +537,7 @@ create or replace function vz_private.vz_reviews(p_slug text, p_limit int defaul
 language sql stable security definer set search_path = '' as $$
   select coalesce(jsonb_agg(vz_private.vz_review_pub(x) order by x.created_at desc), '[]'::jsonb) from (
     select r.* from public.vz_reviews r join public.vz_cards c on c.id = r.card_id
-    where c.slug = lower(trim(p_slug)) and not c.is_blocked and r.status = 'pub'
+    where c.slug = lower(trim(p_slug)) and not c.is_blocked and r.status = 'pub' and vz_private.vz_reviews_on()
     order by r.created_at desc limit least(greatest(coalesce(p_limit, 3), 1), 50) offset greatest(coalesce(p_offset, 0), 0)) x;
 $$;
 
@@ -539,6 +546,7 @@ create or replace function vz_private.vz_review_invite(p_key text) returns text
 language plpgsql security definer set search_path = '' as $$
 declare cid uuid; t text := replace(gen_random_uuid()::text, '-', '');
 begin
+  if not vz_private.vz_reviews_on() then raise exception 'Отзывы временно отключены'; end if;
   select id into cid from public.vz_cards where key_hash = vz_private.vz_hash(p_key) and not is_blocked;
   if cid is null then raise exception 'Сначала сохраните визитку в облаке'; end if;
   if (select count(*) from public.vz_review_invites where card_id = cid and created_at > now() - interval '1 day') >= 30 then
@@ -552,7 +560,7 @@ create or replace function vz_private.vz_review_invite_info(p_token text) return
 language sql stable security definer set search_path = '' as $$
   select jsonb_build_object('slug', c.slug, 'n', c.data->>'n', 'valid', i.used_at is null and i.expires_at > now(), 'used', i.used_at is not null)
   from public.vz_review_invites i join public.vz_cards c on c.id = i.card_id
-  where i.token_hash = vz_private.vz_hash(coalesce(p_token, '') || coalesce(p_token, '')) and not c.is_blocked;
+  where i.token_hash = vz_private.vz_hash(coalesce(p_token, '') || coalesce(p_token, '')) and not c.is_blocked and vz_private.vz_reviews_on();
 $$;
 
 -- Отправить отзыв. С токеном приглашения — публикуется сразу (если текст чистый). Без — на модерацию, с лимитами.
@@ -563,6 +571,7 @@ declare c public.vz_cards; inv public.vz_review_invites; b text := left(btrim(co
   a text := left(btrim(split_part(regexp_replace(coalesce(p_author, ''), '[^[:alpha:] -]', '', 'g'), ' ', 1)), 30);
   dev text := left(coalesce(p_device, ''), 40); ip text; fl text; st text; rid bigint;
 begin
+  if not vz_private.vz_reviews_on() then raise exception 'Отзывы временно отключены'; end if;
   if p_stars is null or p_stars not between 1 and 5 then raise exception 'Поставьте оценку от 1 до 5'; end if;
   ip := btrim(split_part(coalesce(nullif(current_setting('request.headers', true), '')::json->>'x-forwarded-for', ''), ',', 1));
   if ip <> '' then ip := encode(sha256(convert_to(ip, 'UTF8')), 'hex'); end if;
@@ -599,6 +608,7 @@ end $$;
 create or replace function vz_private.vz_review_complain(p_id bigint, p_reason text, p_device text) returns boolean
 language plpgsql security definer set search_path = '' as $$
 begin
+  if not vz_private.vz_reviews_on() then raise exception 'Отзывы временно отключены'; end if;
   if length(coalesce(p_device, '')) < 8 then raise exception 'Не удалось отправить жалобу'; end if;
   if not exists (select 1 from public.vz_reviews where id = p_id and status = 'pub') then raise exception 'Отзыв не найден'; end if;
   insert into public.vz_review_complaints (review_id, reason, device) values (p_id, left(btrim(coalesce(p_reason, '')), 300), left(p_device, 40))
@@ -612,7 +622,7 @@ end $$;
 -- Водитель: свои отзывы (опубликованные + сколько ждут модерации) и один ответ на отзыв.
 create or replace function vz_private.vz_my_reviews(p_key text) returns jsonb
 language sql stable security definer set search_path = '' as $$
-  with c as (select id from public.vz_cards where key_hash = vz_private.vz_hash(p_key))
+  with c as (select id from public.vz_cards where key_hash = vz_private.vz_hash(p_key) and vz_private.vz_reviews_on())
   select case when not exists (select 1 from c) then null else jsonb_build_object(
     'list', (select coalesce(jsonb_agg(vz_private.vz_review_pub(r) order by r.created_at desc), '[]'::jsonb) from public.vz_reviews r where r.card_id in (select id from c) and r.status = 'pub'),
     'pending', (select count(*) from public.vz_reviews r where r.card_id in (select id from c) and r.status = 'pending'),
@@ -623,6 +633,7 @@ create or replace function vz_private.vz_review_reply(p_key text, p_id bigint, p
 language plpgsql security definer set search_path = '' as $$
 declare t text := left(btrim(coalesce(p_text, '')), 500);
 begin
+  if not vz_private.vz_reviews_on() then raise exception 'Отзывы временно отключены'; end if;
   if t = '' then raise exception 'Напишите ответ'; end if;
   if vz_private.vz_review_flag(t) <> '' then raise exception 'В ответе нельзя: ссылки, телефоны, мат'; end if;
   update public.vz_reviews r set reply = t, reply_at = now()
@@ -808,6 +819,7 @@ create or replace function vz_private.vz_order_review(p_dev text, p_id uuid) ret
 language plpgsql security definer set search_path = '' as $$
 declare o public.vz_orders; t text := replace(gen_random_uuid()::text, '-', '');
 begin
+  if not vz_private.vz_reviews_on() then raise exception 'Отзывы временно отключены'; end if;
   select * into o from public.vz_orders where id = p_id and dev_hash = vz_private.vz_hash(p_dev) for update;
   if o.id is null or o.status <> 'taken' or o.taken_card is null then raise exception 'Отзыв — после выбора водителя'; end if;
   if o.review_issued then raise exception 'Отзыв по этому заказу уже оставлен'; end if;

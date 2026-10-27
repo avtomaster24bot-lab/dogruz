@@ -15,6 +15,7 @@
       '<button type="button" class="rv-flag" data-flag="' + x.id + '"><svg><use href="#i-flag"/></svg>Пожаловаться</button></article>';
   }
   function complain(id) {
+    if (!V.reviewsOn()) return;
     var reasons = ['Ложный отзыв', 'Оскорбления', 'Личные данные', 'Реклама / спам', 'Другое'];
     var s = V.sheet('Пожаловаться на отзыв', '<div class="qchips" data-rs>' + reasons.map(function (r, i) { return '<button type="button" class="qchip' + (i ? '' : ' on') + '">' + r + '</button>'; }).join('') + '</div>' +
       '<textarea class="inp" maxlength="250" rows="3" placeholder="Что не так? (необязательно)"></textarea>' +
@@ -28,6 +29,7 @@
   }
   // Форма отзыва. token — из ссылки-приглашения (публикуется сразу), иначе — на модерацию.
   function form(slug, driver, token, done) {
+    if (!V.reviewsOn()) return null;
     var n = 0;
     var s = V.sheet('Отзыв о водителе ' + driver,
       (token ? '<p class="rv-inv">По приглашению водителя</p>' : '<p class="muted">Отзыв появится после проверки модератором.</p>') +
@@ -57,6 +59,12 @@
   }
   // Блок отзывов на визитке
   function mount(sec, slug, driver, rating) {
+    if (!V.reviewsOn()) {                 // отзывы выключены: блока нет, ссылка-приглашение просто открывает визитку
+      sec.hidden = true; sec.innerHTML = '';
+      var q = new URLSearchParams(location.search);
+      if (q.has('r') || q.has('review')) { q.delete('r'); q.delete('review'); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); }
+      return { reload: function () {} };
+    }
     var short = String(driver || '').split(' ')[0];
     function draw(list) {
       var r = rating && rating.n ? '★ ' + String(rating.avg).replace('.', ',') + ' · ' + rating.n + ' ' + V.plural(rating.n, 'отзыв', 'отзыва', 'отзывов') : '';

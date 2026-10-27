@@ -80,7 +80,8 @@
   function reviews() {
     call('vz_admin_reviews').then(function (l) {
       var pend = l.filter(function (r) { return r.status === 'pending'; }).length, comp = l.filter(function (r) { return r.complaints.length; }).length;
-      document.getElementById('revs').innerHTML = '<h3>Отзывы: на проверке ' + pend + ' · с жалобами ' + comp + '</h3>' + (l.length ? l.map(function (r) {
+      document.getElementById('revs').innerHTML = '<h3>Отзывы: на проверке ' + pend + ' · с жалобами ' + comp + '</h3>' +
+        (V.reviewsOn() ? '' : '<p class="pro-pend">Отзывы выключены: на сайте их не видно, новые принять нельзя. Данные сохранены. Включить: REVIEWS_ENABLED: true в js/config.js и reviews_enabled = true в vz_settings.</p>') + (l.length ? l.map(function (r) {
         var st = '★★★★★'.slice(0, r.stars) + '☆☆☆☆☆'.slice(0, 5 - r.stars);
         return '<article class="adm-row glass rv-adm st-r-' + r.status + '" data-rv="' + r.id + '"><div class="adm-main"><b>' + st + '</b> ' + esc(r.author || 'Клиент') +
           ' → <a href="' + esc(C.shortUrl(r.slug)) + '" target="_blank">' + esc(r.n) + '</a> · <span class="muted">' + ago(r.at) + ' · ' + (r.invite ? 'по приглашению' : 'открытая форма') + '</span>' +

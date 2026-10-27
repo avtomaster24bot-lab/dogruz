@@ -454,7 +454,7 @@
     if (d.pr) pills += '<span class="pill price">' + esc(priceText(d)) + '</span>';
     var stx = statusInfo(opts.status);
     if (stx) pills = '<span class="pill st-' + stx.s + '"><i></i>' + esc(stx.text) + '</span>' + pills;
-    var rating = opts.rating && opts.rating.n ? '<a class="hc-rate" href="#reviews">★ ' + String(opts.rating.avg).replace('.', ',') + ' · ' + opts.rating.n + ' ' + plural(opts.rating.n, 'отзыв', 'отзыва', 'отзывов') + '</a>' : '';
+    var rating = reviewsOn() && opts.rating && opts.rating.n ? '<a class="hc-rate" href="#reviews">★ ' + String(opts.rating.avg).replace('.', ',') + ' · ' + opts.rating.n + ' ' + plural(opts.rating.n, 'отзыв', 'отзыва', 'отзывов') + '</a>' : '';
     return '<div class="hero-card">' +
       '<div class="hc-media"><img class="veh" src="' + vehicleImg(d) + '" alt="" width="520" height="319" decoding="async">' +
       '<span class="hc-tag">' + esc(t('tag')) + '</span>' + (opts.badge ? '<span class="hc-pro">' + esc(opts.badge) + '</span>' : '') + (d.x ? '<span class="hc-demo">' + esc(t('demo')) + '</span>' : '') +
@@ -465,6 +465,7 @@
       (pills ? '<div class="pills">' + pills + '</div>' : '') +
       '</div>';
   }
+  function reviewsOn() { var c = window.VEZU_CFG; return !!(c && c.REVIEWS_ENABLED); }
   function plural(n, a, b, c) { n = Math.abs(n) % 100; var m = n % 10; return n > 10 && n < 20 ? c : m === 1 ? a : m > 1 && m < 5 ? b : c; }
   // Статус водителя из облака: { s: 'free'|'busy', until } → текст (время — по Алматы)
   function hhmm(iso) { try { return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }); } catch (e) { return ''; } }
@@ -764,7 +765,7 @@
     cardUrl: cardUrl, cardUrlAsync: cardUrlAsync, editUrl: editUrl,
     normPhone: normPhone, fmtPhone: fmtPhone, waLink: waLink, waApp: waApp, waApi: waApi, waIntent: waIntent, waHref: waHref, openWA: openWA, bindWaLink: bindWaLink, inAppBrowser: inAppBrowser,
     IS_MOBILE: IS_MOBILE, IS_ANDROID: IS_ANDROID, IS_IOS: IS_IOS, _nav: function (u) { location.href = u; }, gisLink: gisLink, gmapsLink: gmapsLink, fmtNum: fmtNum, fmtPrice: fmtPrice, orderText: orderText,
-    services: services, initials: initials, metaLine: metaLine, hoursText: hoursText, isOpen: isOpen, almatyHour: almatyHour, priceText: priceText, cardHero: cardHero, statusInfo: statusInfo, plural: plural, hhmm: hhmm, cardDetails: cardDetails, applyTheme: applyTheme,
+    services: services, initials: initials, metaLine: metaLine, hoursText: hoursText, isOpen: isOpen, almatyHour: almatyHour, priceText: priceText, cardHero: cardHero, statusInfo: statusInfo, reviewsOn: reviewsOn, plural: plural, hhmm: hhmm, cardDetails: cardDetails, applyTheme: applyTheme,
     qrSvg: qrSvg, qrPng: qrPng, vcf: vcf, contactIntent: contactIntent, addContact: addContact, download: download, fileName: fileName,
     toast: toast, copy: copy, share: share, bindOrderForm: bindOrderForm, bindInstall: bindInstall, cardManifest: cardManifest
   };

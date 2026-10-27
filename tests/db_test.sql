@@ -115,7 +115,12 @@ set role anon;
 select 'stale', public.vz_me(current_setting('vz.nk'))->>'status' is null;
 select 'rt', public.vz_save_card(current_setting('vz.nk'), (public.vz_me(current_setting('vz.nk'))->'d') || '{"rt":"6000,150,,3000,1000,"}')->'d'->>'rt';
 select 'rt bad', public.vz_save_card(current_setting('vz.nk'), (public.vz_me(current_setting('vz.nk'))->'d') || '{"rt":"<b>"}')->'d'->>'rt' is null;
--- v7: отзывы
+-- v7: отзывы (по умолчанию выключены)
+select pg_temp.expect_err($$select public.vz_review_invite(current_setting('vz.nk'))$$, 'отключены');
+select pg_temp.expect_err($$select public.vz_review_submit('testrev', 5, 'x', 'A', 'dev-zzzzzzzz')$$, 'отключены');
+reset role;
+insert into public.vz_settings values ('reviews_enabled', 'true') on conflict (key) do update set value = 'true';
+set role anon;
 select set_config('vz.slug', public.vz_me(current_setting('vz.nk'))->>'slug', false);
 select set_config('vz.tok', public.vz_review_invite(current_setting('vz.nk')), false);
 select 'invite', length(current_setting('vz.tok')), public.vz_review_invite_info(current_setting('vz.tok'))->>'valid';
@@ -144,6 +149,13 @@ select 'restore', public.vz_admin_review_set(:KA, current_setting('vz.rid')::big
 select 'approve all', count(public.vz_admin_review_set(:KA, (x->>'id')::bigint, 'pub')) from jsonb_array_elements(public.vz_admin_reviews(:KA)) x;
 select 'rating', public.vz_card(current_setting('vz.slug'))->'rating';
 select pg_temp.expect_err($$select count(*) from public.vz_reviews$$, 'permission');
+reset role;
+update public.vz_settings set value = 'false' where key = 'reviews_enabled';
+set role anon;
+select 'off: hidden', public.vz_card(current_setting('vz.slug'))->'rating' = 'null'::jsonb, public.vz_reviews(current_setting('vz.slug')) = '[]'::jsonb, public.vz_my_reviews(current_setting('vz.nk')) is null;
+reset role;
+update public.vz_settings set value = 'true' where key = 'reviews_enabled';
+set role anon;
 -- v8: заказы
 \set D1 '''dev-1111111111111111111111111111111111'''
 \set D2 '''dev-2222222222222222222222222222222222'''

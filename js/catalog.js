@@ -12,7 +12,7 @@
   function item(r) {
     var d = V.clean(r.d), url = C.shortUrl(r.slug), img = r.photo ? C.photoUrl(r.photo) : '';
     var open = d.hs != null ? V.isOpen(d) : null, si = V.statusInfo(r.status), F = window.VEZU_FAV;
-    var rate = r.rating && r.rating.n ? '<span class="cat-r">★ ' + String(r.rating.avg).replace('.', ',') + ' · ' + r.rating.n + ' ' + V.plural(r.rating.n, 'отзыв', 'отзыва', 'отзывов') + '</span>' : '';
+    var rate = V.reviewsOn() && r.rating && r.rating.n ? '<span class="cat-r">★ ' + String(r.rating.avg).replace('.', ',') + ' · ' + r.rating.n + ' ' + V.plural(r.rating.n, 'отзыв', 'отзыва', 'отзывов') + '</span>' : '';
     return '<article class="cat glass">' + (F ? F.btnHtml(r.slug, 'fav-cat') : '') +
       '<a class="cat-top" href="' + V.esc(url) + '">' +
       '<span class="cat-img"><img src="' + V.vehicleImg(d) + '" alt="" loading="lazy" decoding="async" width="520" height="319">' +

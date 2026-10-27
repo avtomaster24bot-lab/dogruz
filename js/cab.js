@@ -46,6 +46,7 @@
   // ---------- отзывы: пригласить ----------
   function inviteUrl(slug, tok) { return C.siteBase() + 'card.html?u=' + encodeURIComponent(slug) + '&r=' + tok; }
   function askReview(card) {
+    if (!V.reviewsOn()) return;
     if (!card.slug) { V.toast('Сначала задайте короткий адрес визитки (Про)'); return; }
     C.rpc('vz_review_invite', { p_key: C.key() }).then(function (tok) {
       var url = inviteUrl(card.slug, tok), text = 'Здравствуйте! Это ' + card.d.n.split(' ')[0] + ', водитель. Спасибо за заказ! Оставьте, пожалуйста, короткий отзыв — это 30 секунд: ' + url;
@@ -82,9 +83,10 @@
     host.hidden = false;
     host.innerHTML = '<section class="glass cab-sec" id="status"><h3>Мой статус</h3>' + statusHtml(card.status) + '</section>' +
       '<a class="cab-feed glass" href="app.html#feed"><svg><use href="#i-feed"/></svg><span><b>Лента заказов</b><small>Заказы клиентов рядом — откликайтесь «Беру»</small></span><em class="cnt" data-feedn' + (feedN ? '' : ' hidden') + '>' + feedN + '</em></a>' +
-      '<section class="glass cab-sec" id="reviews"><h3>Отзывы клиентов</h3>' +
-      '<button type="button" class="btn btn-grad btn-block" data-ask><svg><use href="#i-star"/></svg>Попросить отзыв</button><div data-myrv><p class="muted">Загружаю…</p></div></section>';
-    loadReviews(); loadFeed();
+      (V.reviewsOn() ? '<section class="glass cab-sec" id="reviews"><h3>Отзывы клиентов</h3>' +
+      '<button type="button" class="btn btn-grad btn-block" data-ask><svg><use href="#i-star"/></svg>Попросить отзыв</button><div data-myrv><p class="muted">Загружаю…</p></div></section>' : '');
+    if (V.reviewsOn()) loadReviews();
+    loadFeed();
   }
   function loadReviews() {
     C.rpc('vz_my_reviews', { p_key: C.key() }).then(function (r) { var el = host.querySelector('[data-myrv]'); if (el) el.innerHTML = myReviewsHtml(r); }, function () {});
