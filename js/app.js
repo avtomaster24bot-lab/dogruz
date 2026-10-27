@@ -62,7 +62,7 @@
     var box = $('#tgl'), favs = F.list();
     var fb = form.querySelector('[data-t=fav]'); if (fb) fb.disabled = !favs.length;
     if (target === 'fav' && !favs.length) target = 'all';
-    if (target === 'all') { box.innerHTML = '<p class="fine">Заказ увидят все водители ВЕЗУ в «Ленте». Ваш телефон увидит только водитель, который откликнется.</p>'; return; }
+    if (target === 'all') { box.innerHTML = '<p class="fine">Заказ увидят все водители ВЕЗУ в «Ленте». Ваш телефон увидит только водитель, которого вы выберете.</p>'; return; }
     var rows = target === 'fav' ? favs : favs.concat((catRows || []).filter(function (r) { return !F.has(r.slug); }));
     if (target === 'pick' && !catRows) {
       catRows = [];
@@ -89,7 +89,7 @@
     o.calc = c;
     var fail = function (t) { err.textContent = t; err.hidden = false; err.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
     if (!o.what && !o.from) return fail('Напишите, что везём и откуда.');
-    if (!phone) return fail('Укажите телефон — его увидит только водитель, который откликнется.');
+    if (!phone) return fail('Укажите телефон — его увидит только водитель, которого вы выберете.');
     var slugs = target === 'all' ? null : target === 'fav' ? F.list().map(function (f) { return f.slug; }) : Object.keys(picked);
     if (slugs && !slugs.length) return fail('Отметьте хотя бы одного водителя.');
     C.ls('vezu-me', { n: o.name, p: phone });
