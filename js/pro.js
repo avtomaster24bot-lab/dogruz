@@ -99,9 +99,10 @@
       '<button type="button" class="lnk" id="pdel">Удалить визитку из облака</button>' +
       '</div></details>';
     if (pro) { bindSlug(); checkSlug(); }
+    if (window.VEZU_CAB) window.VEZU_CAB.render(card);
   }
   function render() {
-    if (card) renderCard(); else renderNew();
+    if (card) renderCard(); else { renderNew(); if (window.VEZU_CAB) window.VEZU_CAB.render(null); }
   }
 
   function bindSlug() {

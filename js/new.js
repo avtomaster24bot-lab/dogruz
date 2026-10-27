@@ -15,6 +15,11 @@
   if (state.tg) f.elements.tg.value = '@' + state.tg;
   if (state.p) f.elements.p.value = V.fmtPhone(state.p);
   if (state.pr) f.elements.pr.value = V.fmtNum(state.pr);
+  // тарифы калькулятора: rt = «мин,км город,км межгород,грузчик,этаж,км в минимуме»
+  var CALC = window.VEZU_CALC, rtv = String(state.rt || '').split(',');
+  if (CALC) CALC.KEYS.forEach(function (k, i) { var el = f.elements['rt' + i]; if (!el) return; el.placeholder = String(CALC.RATES[k]); el.value = rtv[i] || ''; });
+  if (state.rt) document.getElementById('rates').open = true;
+  document.getElementById('rtreset').addEventListener('click', function () { for (var i = 0; i < 6; i++) f.elements['rt' + i].value = ''; update(); });
   var tgphoto = document.getElementById('tgphoto');
   tgphoto.checked = !!(state.f & V.TG_PHOTO);
   // раскрыть «Ещё», если там уже что-то заполнено
@@ -119,6 +124,8 @@
     TEXT.forEach(function (k) { state[k] = f.elements[k].value.trim(); });
     state.p = V.normPhone(phone.value);
     state.pr = f.elements.pr.value;
+    var rt = []; for (var ri = 0; ri < 6; ri++) { var re = f.elements['rt' + ri]; if (re) { re.value = re.value.replace(/\D/g, '').slice(0, 6); rt.push(re.value); } }
+    state.rt = rt.join('').length ? rt.join(',') : '';
     state.hs = hs.value; state.he = he.value;
     d = V.clean(state);
     if (valid1()) { document.getElementById('err1').hidden = true; f.elements.n.classList.remove('bad'); phone.classList.remove('bad'); }

@@ -3,7 +3,7 @@
   'use strict';
   var V = window.VEZU, C = window.VZC;
   var list = document.getElementById('list'), f = document.getElementById('filters'), city = document.getElementById('city');
-  var st = { veh: '', svc: null }, seq = 0, timer = 0;
+  var st = { veh: '', svc: null, free: false }, seq = 0, timer = 0;
 
   document.getElementById('vehf').innerHTML = '<button type="button" class="qchip on" data-veh="">Все</button>' +
     V.VEHICLES.map(function (v) { return '<button type="button" class="qchip" data-veh="' + v.k + '">' + V.esc(v.l) + '</button>'; }).join('');
@@ -11,13 +11,15 @@
 
   function item(r) {
     var d = V.clean(r.d), url = C.shortUrl(r.slug), img = r.photo ? C.photoUrl(r.photo) : '';
-    var open = d.hs != null ? V.isOpen(d) : null;
-    return '<article class="cat glass">' +
+    var open = d.hs != null ? V.isOpen(d) : null, si = V.statusInfo(r.status), F = window.VEZU_FAV;
+    var rate = r.rating && r.rating.n ? '<span class="cat-r">★ ' + String(r.rating.avg).replace('.', ',') + ' · ' + r.rating.n + ' ' + V.plural(r.rating.n, 'отзыв', 'отзыва', 'отзывов') + '</span>' : '';
+    return '<article class="cat glass">' + (F ? F.btnHtml(r.slug, 'fav-cat') : '') +
       '<a class="cat-top" href="' + V.esc(url) + '">' +
       '<span class="cat-img"><img src="' + V.vehicleImg(d) + '" alt="" loading="lazy" decoding="async" width="520" height="319">' +
       '<i class="cat-av">' + (img ? '<img src="' + V.esc(img) + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '<b>' + V.esc(V.initials(d.n)) + '</b></i></span>' +
       '<span class="cat-txt"><b class="cat-n">' + V.esc(d.n) + (r.paid ? ' <em class="cat-pro">PRO</em>' : '') + '</b>' +
-      '<span class="cat-m">' + V.esc(V.metaLine(d)) + '</span>' +
+      '<span class="cat-m">' + V.esc(V.metaLine(d)) + '</span>' + rate +
+      (si ? '<span class="cat-st st-' + si.s + '"><i></i>' + V.esc(si.short) + '</span>' : '') +
       (open != null ? '<span class="cat-o ' + (open ? 'on' : '') + '">' + (open ? 'Сейчас работает' : 'Сейчас не работает') + ' · ' + V.esc(V.hoursText(d)) + '</span>' : '') +
       (d.pr ? '<span class="cat-p">' + V.esc(V.priceText(d)) + '</span>' : '') +
       '<span class="cat-s">' + V.esc(V.services(d).slice(0, 4).join(' · ')) + '</span></span></a>' +
@@ -28,7 +30,7 @@
   function load() {
     var my = ++seq;
     list.innerHTML = '<p class="muted cat-msg">Загружаем…</p>';
-    C.rpc('vz_catalog', { p_city: city.value.trim(), p_veh: st.veh, p_service: st.svc, p_limit: 60, p_offset: 0 }).then(function (r) {
+    C.rpc('vz_catalog', { p_city: city.value.trim(), p_veh: st.veh, p_service: st.svc, p_limit: 60, p_offset: 0, p_free: st.free }).then(function (r) {
       if (my !== seq) return;
       rows = {}; (r || []).forEach(function (x) { rows[x.slug] = x; });
       list.innerHTML = r && r.length ? r.map(item).join('') :
@@ -41,9 +43,11 @@
   f.addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
     if (b.dataset.veh !== undefined) { st.veh = b.dataset.veh; f.querySelectorAll('[data-veh]').forEach(function (x) { x.classList.toggle('on', x === b); }); }
+    else if (b.dataset.free !== undefined) { st.free = !st.free; b.classList.toggle('on', st.free); b.setAttribute('aria-pressed', String(st.free)); }
     else if (b.dataset.svc !== undefined) { var v = +b.dataset.svc; st.svc = st.svc === v ? null : v; f.querySelectorAll('[data-svc]').forEach(function (x) { x.classList.toggle('on', +x.dataset.svc === st.svc); }); }
     load();
   });
+  if (window.VEZU_FAV) window.VEZU_FAV.bind(list, function (slug) { var r = rows[slug]; return r && window.VEZU_FAV.info(slug, V.clean(r.d), r.photo ? C.photoUrl(r.photo) : ''); });
   city.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(load, 350); });
   list.addEventListener('click', function (e) {
     var a = e.target.closest('[data-wa],[data-call]'); if (!a) return;

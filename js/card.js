@@ -20,7 +20,7 @@
         if (!r || !r.d) return start(null);
         var d = V.clean(r.d);
         if (r.photo) d.i = C.photoUrl(r.photo);
-        start(d, { slug: r.slug, pro: !!r.pro, lifetime: !!r.lifetime });
+        start(d, { slug: r.slug, pro: !!r.pro, lifetime: !!r.lifetime, status: r.status, rating: r.rating, photo: r.photo ? C.photoUrl(r.photo) : '' });
       }, function () {
         app.classList.remove('loading');
         var f = fallback();
@@ -44,17 +44,35 @@
   var url = cloud.slug ? C.shortUrl(cloud.slug) : V.cardUrl(d);
   document.title = d.n + (d.c ? ' · ' + d.c : '') + ' — грузоперевозки | ВЕЗУ';
   var hero = document.getElementById('hero'), det = document.getElementById('details');
+  var F = window.VEZU_FAV, own = !!(cloud.slug && C && C.key() && C.ls('vezu-cloud-slug') === cloud.slug);
+  function heroOpts() { return { badge: cloud.lifetime ? '★ Про · бессрочно' : cloud.pro ? 'PRO' : '', status: cloud.status, rating: cloud.rating }; }
+  function heroHtml() {
+    return V.cardHero(d, false, heroOpts()) + (cloud.slug && !cloud.cached ? '<div class="hc-acts">' + (F ? F.btnHtml(cloud.slug) : '') +
+      (own ? '<button type="button" class="btn btn-glass btn-sm st-own" id="mystatus"><svg><use href="#i-feed"/></svg>Статус</button>' : '') + '</div>' : '');
+  }
   function render() {
-    hero.innerHTML = V.cardHero(d, false, { badge: cloud.lifetime ? '★ Про · бессрочно' : cloud.pro ? 'PRO' : '' });
+    hero.innerHTML = heroHtml();
     var html = V.cardDetails(d);
     det.innerHTML = html ? '<h2>' + V.esc(V.t('details')) + '</h2>' + html : '';
     det.hidden = !html;
   }
   render();
-  if (d.hs != null) setInterval(function () { hero.innerHTML = V.cardHero(d, false, { badge: cloud.lifetime ? '★ Про · бессрочно' : cloud.pro ? 'PRO' : '' }); }, 60000);
+  if (d.hs != null || cloud.status) setInterval(function () { hero.innerHTML = heroHtml(); }, 60000);
+  if (cloud.slug && F) {
+    F.bind(hero, function () { return F.info(cloud.slug, d, cloud.photo); });
+    if (F.has(cloud.slug)) F.update(F.info(cloud.slug, d, cloud.photo));     // обновить имя/машину в «Моих водителях»
+  }
+  hero.addEventListener('click', function (e) {
+    if (!e.target.closest('#mystatus') || !window.VEZU_CAB) return;
+    window.VEZU_CAB.statusSheet(cloud.status, function (s) { cloud.status = s; hero.innerHTML = heroHtml(); });
+  });
+  var rvSec = document.getElementById('reviews');
+  if (cloud.slug && !cloud.cached && window.VEZU_RV) window.VEZU_RV.mount(rvSec, cloud.slug, d.n, cloud.rating);
+  function busyNote() { var si = V.statusInfo(cloud.status); return si && si.s === 'busy' ? 'Вижу, что вы сейчас заняты (' + si.text.toLowerCase() + ') — ответьте, когда освободитесь.' : ''; }
 
   var hello = 'Здравствуйте, ' + d.n.split(' ')[0] + '! Нашёл(ла) вашу визитку. Нужна перевозка.';
   var wa = document.getElementById('wa'), call = document.getElementById('call'), tg = document.getElementById('tg');
+  if (busyNote()) hello += '\n' + busyNote();
   V.bindWaLink(wa, d.p, hello);
   call.href = 'tel:+' + d.p;
   if (cloud.pro) {
@@ -66,7 +84,8 @@
   if (!d.p) { wa.setAttribute('disabled', ''); call.setAttribute('disabled', ''); }
   if (d.tg) { tg.href = 'https://t.me/' + d.tg; tg.hidden = false; }
 
-  V.bindOrderForm(document.getElementById('order'), function () { return d.p; }, function () { return d.n; });
+  V.bindOrderForm(document.getElementById('order'), function () { return d.p; }, function () { return d.n; },
+    { rates: function () { return d.rt || ''; }, city: function () { return d.t || ''; }, note: busyNote });
 
   document.getElementById('vcf').addEventListener('click', function () {
     V.addContact(d, url);

@@ -130,6 +130,9 @@
     var f = parseInt(d.f, 10) & 127; if (f) out.f = f;
     var th = parseInt(d.th, 10); if (th > 0 && th < THEMES.length) out.th = th;
     if (d.x) out.x = 1;
+    var rt = String(d.rt || '').replace(/[^0-9,]/g, '').split(',').slice(0, 6).map(function (x) { return x.slice(0, 6); });
+    while (rt.length < 6) rt.push('');
+    if (rt.join('')) out.rt = rt.join(',');
     return out;
   }
 
@@ -183,6 +186,7 @@
     if (d.f) { mask |= 4096; body.b.push(d.f); }
     if (d.th) { mask |= 8192; body.b.push(d.th); }
     if (d.x) mask |= 16384;
+    if (d.rt) { mask |= 32768; body.s(d.rt); }
     w.u(mask); return w.b.concat(body.b);
   }
   function unpack(b) {
@@ -202,6 +206,7 @@
     if (mask & 4096) d.f = r.byte();
     if (mask & 8192) d.th = r.byte();
     if (mask & 16384) d.x = 1;
+    if (mask & 32768) d.rt = r.s();
     return d;
   }
   function encodeSync(d) { return b64urlFromBytes([2].concat(pack(clean(d)))); }
@@ -347,6 +352,8 @@
     if (o.what) lines.push('Что везём: ' + o.what);
     if (o.when) lines.push('Когда: ' + o.when);
     if (o.price) lines.push('Моя цена: ' + fmtPrice(o.price));
+    if (o.calc && window.VEZU_CALC) lines = lines.concat(window.VEZU_CALC.lines(o.calc));
+    if (o.note) lines.push(o.note);
     return lines.join('\n');
   }
 
@@ -445,15 +452,29 @@
     if (open !== null) pills += '<span class="pill ' + (open ? 'on' : 'off') + '"><i></i>' + esc(open ? (is24(d) ? t('h24') : t('open_now')) : t('closed_now')) +
       (is24(d) ? '' : ' · ' + esc(open ? hoursText(d) : t('from_h', hh(d.hs)))) + '</span>';
     if (d.pr) pills += '<span class="pill price">' + esc(priceText(d)) + '</span>';
+    var stx = statusInfo(opts.status);
+    if (stx) pills = '<span class="pill st-' + stx.s + '"><i></i>' + esc(stx.text) + '</span>' + pills;
+    var rating = opts.rating && opts.rating.n ? '<a class="hc-rate" href="#reviews">★ ' + String(opts.rating.avg).replace('.', ',') + ' · ' + opts.rating.n + ' ' + plural(opts.rating.n, 'отзыв', 'отзыва', 'отзывов') + '</a>' : '';
     return '<div class="hero-card">' +
       '<div class="hc-media"><img class="veh" src="' + vehicleImg(d) + '" alt="" width="520" height="319" decoding="async">' +
       '<span class="hc-tag">' + esc(t('tag')) + '</span>' + (opts.badge ? '<span class="hc-pro">' + esc(opts.badge) + '</span>' : '') + (d.x ? '<span class="hc-demo">' + esc(t('demo')) + '</span>' : '') +
       '<div class="av"><span>' + esc(initials(name)) + '</span>' +
       (ph ? '<img src="' + esc(ph) + '" alt="" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</div></div>' +
-      '<h1 class="hc-name">' + esc(name) + '</h1>' +
+      '<h1 class="hc-name">' + esc(name) + '</h1>' + rating +
       (meta ? '<p class="hc-meta">' + esc(meta) + '</p>' : '') +
       (pills ? '<div class="pills">' + pills + '</div>' : '') +
       '</div>';
+  }
+  function plural(n, a, b, c) { n = Math.abs(n) % 100; var m = n % 10; return n > 10 && n < 20 ? c : m === 1 ? a : m > 1 && m < 5 ? b : c; }
+  // Статус водителя из облака: { s: 'free'|'busy', until } → текст (время — по Алматы)
+  function hhmm(iso) { try { return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }); } catch (e) { return ''; } }
+  function statusInfo(st) {
+    if (!st || !st.s) return null;
+    var u = st.until ? new Date(st.until) : null;
+    if (st.s === 'free' || (u && u < new Date())) return { s: 'free', text: 'Свободен · готов приехать', short: 'Свободен' };
+    var day = function (x) { return new Date(x.getTime() + 5 * 3600e3).getUTCDate(); };
+    var txt = u ? 'Занят до ' + (day(u) !== day(new Date()) ? 'завтра ' : '') + hhmm(st.until) : 'Занят';
+    return { s: 'busy', text: txt, short: txt };
   }
   // Подробности под первым экраном: услуги, районы, «есть», оплата, заметка
   function cardDetails(d) {
@@ -669,8 +690,10 @@
   }
 
   // ---------- форма заказа ----------
-  function bindOrderForm(form, getPhone, getName) {
+  function bindOrderForm(form, getPhone, getName, opts) {
+    opts = opts || {};
     bindGeo(form);
+    if (window.VEZU_CALC && !opts.noCalc) window.VEZU_CALC.bind(form, opts);
     form.querySelectorAll('[data-fill]').forEach(function (b) {
       b.addEventListener('click', function () {
         var inp = form.querySelector('[name="' + b.dataset.fill + '"]');
@@ -685,6 +708,8 @@
       ev.preventDefault();
       var o = {}; ['from', 'to', 'what', 'when', 'price'].forEach(function (k) { var i = form.querySelector('[name=' + k + ']'); o[k] = i ? i.value.trim() : ''; });
       if (form._geo && o.from) o.geo = form._geo;
+      if (form._calc) o.calc = form._calc;
+      if (opts.note) o.note = opts.note();
       if (!o.from && !o.to && !o.what) { toast(t('need_what')); (form.querySelector('[name=what]') || form.querySelector('input')).focus(); return; }
       openWA(getPhone(), orderText(o, getName && getName()));
     });
@@ -739,7 +764,7 @@
     cardUrl: cardUrl, cardUrlAsync: cardUrlAsync, editUrl: editUrl,
     normPhone: normPhone, fmtPhone: fmtPhone, waLink: waLink, waApp: waApp, waApi: waApi, waIntent: waIntent, waHref: waHref, openWA: openWA, bindWaLink: bindWaLink, inAppBrowser: inAppBrowser,
     IS_MOBILE: IS_MOBILE, IS_ANDROID: IS_ANDROID, IS_IOS: IS_IOS, _nav: function (u) { location.href = u; }, gisLink: gisLink, gmapsLink: gmapsLink, fmtNum: fmtNum, fmtPrice: fmtPrice, orderText: orderText,
-    services: services, initials: initials, metaLine: metaLine, hoursText: hoursText, isOpen: isOpen, almatyHour: almatyHour, priceText: priceText, cardHero: cardHero, cardDetails: cardDetails, applyTheme: applyTheme,
+    services: services, initials: initials, metaLine: metaLine, hoursText: hoursText, isOpen: isOpen, almatyHour: almatyHour, priceText: priceText, cardHero: cardHero, statusInfo: statusInfo, plural: plural, hhmm: hhmm, cardDetails: cardDetails, applyTheme: applyTheme,
     qrSvg: qrSvg, qrPng: qrPng, vcf: vcf, contactIntent: contactIntent, addContact: addContact, download: download, fileName: fileName,
     toast: toast, copy: copy, share: share, bindOrderForm: bindOrderForm, bindInstall: bindInstall, cardManifest: cardManifest
   };

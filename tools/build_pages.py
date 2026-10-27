@@ -63,6 +63,15 @@ QCHIPS='''    <div class="qchips" aria-label="Что везём">
       <button type="button" class="qchip" data-fill="what" data-v="Вывоз мусора" data-i18n="q_trash">Вывоз мусора</button>
     </div>
 '''
+BNAV='''<nav class="bnav" aria-label="Приложение ВЕЗУ">
+  <a href="{p}#order"><svg><use href="#i-box"/></svg><span>Заказ</span></a>
+  <a href="{p}#favs"><svg><use href="#i-fav"/></svg><span>Мои водители</span></a>
+  <a href="{p}#orders"><svg><use href="#i-list"/></svg><span>Мои заказы</span><em hidden>0</em></a>
+  <a href="{p}#feed" class="drv"><svg><use href="#i-feed"/></svg><span>Лента</span><em hidden>0</em></a>
+</nav>
+<script>try{{if(localStorage.getItem('vezu-key'))document.body.classList.add('is-driver')}}catch(e){{}}</script>
+'''
+BN=lambda p='app.html': BNAV.replace('{p}', p).replace('{{','{').replace('}}','}')
 import hashlib as _h
 def VER(x):  # ?v=<хэш файла>: после обновления телефон не возьмёт старый файл из кэша браузера
     try: return x + '?v=' + _h.md5(open(x, 'rb').read()).hexdigest()[:8]
@@ -85,6 +94,7 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
     <div class="banner-txt">
       <span class="badge"><i></i>Казахстан · грузы до 3 тонн</span>
       <h1 class="h1">Перевезём <span class="grad-text">что угодно</span> по лучшей цене</h1>
+      <div class="btns cta"><a class="btn btn-grad btn-lg" href="app.html#order"><svg><use href="#i-box"/></svg>Заказать</a><a class="btn btn-glass" href="app.html#orders">Мои заказы</a></div>
     </div>
   </section>
 
@@ -101,7 +111,7 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
         <button type="button" class="info-btn" data-info="geo" aria-label="Что такое «Где я»"><svg><use href="#i-info"/></svg>Где я?</button>
       </div>
 {QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём? Например: диван и 10 коробок')}      <button class="btn btn-wa btn-lg btn-block" type="submit"><svg><use href="#i-wa"/></svg>Отправить в WhatsApp</button>
-      <p class="hint">Откроется WhatsApp с готовым сообщением. Цену можно не указывать.</p>
+      <p class="hint">Откроется WhatsApp с готовым сообщением. Цену можно не указывать. Хотите, чтобы водители сами предложили цену? <a href="app.html#order">Заказ в ленту водителей →</a></p>
     </form>
 
     <div class="svc4" aria-label="Что возим">
@@ -128,7 +138,7 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
   </section>
 </main>
 {FOOT}
-{SCRIPTS('js/common.js')}<script>
+{BN()}{SCRIPTS('js/common.js','js/calc.js')}<script>
 (function () {{
   var V = window.VEZU, form = document.getElementById('order');
   V.bindOrderForm(form, function () {{ return V.SITE_PHONE; }});
@@ -184,6 +194,8 @@ card=head('Визитка водителя — ВЕЗУ','Грузоперево
 {QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём?')}    <button class="btn btn-wa btn-block" type="submit"><svg><use href="#i-wa"/></svg><span data-i18n="send">Отправить заказ</span></button>
   </form>
 
+  <section class="panel glass rv-sec" id="reviews" hidden></section>
+
   <div class="card-foot">
     <button class="lnk" id="install" type="button" hidden><svg><use href="#i-install"/></svg><span data-i18n="install">Установить на телефон</span></button>
     <a class="lnk" id="edit" href="new.html"><svg><use href="#i-edit"/></svg><span data-i18n="edit">Редактировать визитку</span></a>
@@ -191,7 +203,7 @@ card=head('Визитка водителя — ВЕЗУ','Грузоперево
   <a class="made" id="made" href="./" data-i18n="made_by">Сделано на ВЕЗУ — сделай свою визитку</a>
 </main>
 
-{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/config.js','js/cloud.js','js/card.js')}</body>
+{BN()}{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/calc.js','js/config.js','js/cloud.js','js/favs.js','js/reviews.js','js/cab.js','js/card.js')}</body>
 </html>
 '''
 open('card.html','w').write(card)
@@ -266,6 +278,21 @@ new=head('Создать визитку водителя — ВЕЗУ','Бесп
             <div class="fld"><span>Оплата</span><div class="qchips" id="pay"></div></div>
           </div>
         </details>
+        <details class="more" id="rates">
+          <summary>Мои тарифы для калькулятора цены</summary>
+          <div class="f">
+            <p class="muted">Клиент видит примерную цену по вашим тарифам. Пустое поле — средний тариф ВЕЗУ (в подсказке).</p>
+            <div class="rates-g">
+              <label class="fld"><span>Минимальный заказ</span><input class="inp" name="rt0" inputmode="numeric" maxlength="7"><b class="suffix">₸</b></label>
+              <label class="fld"><span>Входит в минимум</span><input class="inp" name="rt5" inputmode="numeric" maxlength="3"><b class="suffix">км</b></label>
+              <label class="fld"><span>Км по городу</span><input class="inp" name="rt1" inputmode="numeric" maxlength="5"><b class="suffix">₸</b></label>
+              <label class="fld"><span>Км межгород</span><input class="inp" name="rt2" inputmode="numeric" maxlength="5"><b class="suffix">₸</b></label>
+              <label class="fld"><span>Грузчик</span><input class="inp" name="rt3" inputmode="numeric" maxlength="6"><b class="suffix">₸</b></label>
+              <label class="fld"><span>Этаж без лифта</span><input class="inp" name="rt4" inputmode="numeric" maxlength="6"><b class="suffix">₸</b></label>
+            </div>
+            <button type="button" class="lnk" id="rtreset">Сбросить на средние</button>
+          </div>
+        </details>
         <div class="navrow">
           <button type="button" class="btn btn-glass" data-next="1">← Назад</button>
           <button type="button" class="btn btn-grad" data-next="3">Готово<svg><use href="#i-arrow"/></svg></button>
@@ -322,7 +349,7 @@ new=head('Создать визитку водителя — ВЕЗУ','Бесп
 
 <div id="print-area"></div>
 
-{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/config.js','js/cloud.js','js/new.js','js/pay.js','js/pro.js')}</body>
+{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/calc.js','js/config.js','js/cloud.js','js/new.js','js/pay.js','js/cab.js','js/pro.js')}</body>
 </html>
 '''
 open('new.html','w').write(new)
@@ -426,15 +453,62 @@ cat=head('Водители ВЕЗУ — каталог грузоперевоз�
     <datalist id="citylist"></datalist>
     <div class="fld"><span>Машина</span><div class="qchips" id="vehf"></div></div>
     <div class="fld"><span>Что нужно</span><div class="qchips" id="svcf"></div></div>
+    <div class="qchips"><button type="button" class="qchip qfree" data-free aria-pressed="false"><i></i>Только свободные</button><a class="qchip" href="app.html#favs">★ Мои водители</a></div>
   </section>
   <section class="cat-list" id="list" aria-live="polite"></section>
-  <p class="fine">В каталоге — водители с активным ВЕЗУ Про; сначала те, кто оплатил Про, потом новые. ВЕЗУ не проверяет водителей и не отвечает за перевозку — договаривайтесь напрямую.</p>
+  <p class="fine">В каталоге — водители с активным ВЕЗУ Про; сначала свободные сейчас, потом те, кто оплатил Про, потом новые. ВЕЗУ не проверяет водителей и не отвечает за перевозку — договаривайтесь напрямую.</p>
 </main>
 {FOOT}
-{SCRIPTS('js/common.js','js/config.js','js/cloud.js','js/catalog.js')}</body>
+{BN()}{SCRIPTS('js/common.js','js/config.js','js/cloud.js','js/favs.js','js/catalog.js')}</body>
 </html>
 '''
 open('catalog.html','w').write(cat)
+# ---------------- app: заказ / мои водители / мои заказы / лента ----------------
+app=head('Заказ перевозки — ВЕЗУ','Опишите груз — водители ВЕЗУ откликнутся со своей ценой. Избранные водители, мои заказы, лента заказов для водителей.','app.html')+f'''
+<header class="top">
+  <div class="wrap narrow">
+    {LOGO('заказы')}
+    <nav class="topnav"><a href="catalog.html">Водители</a></nav>
+  </div>
+</header>
+<main class="wrap narrow app" id="app">
+  <section data-tab="order">
+    <h1>Новый <span class="grad-text">заказ</span></h1>
+    <form class="panel glass f" id="nord" novalidate>
+{QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём? Например: диван и 10 коробок')}      <label class="fld"><span>Точная дата и время (необязательно)</span><input class="inp" name="at" type="datetime-local"></label>
+      <label class="fld"><span>Комментарий</span><input class="inp" name="note" maxlength="300" placeholder="Подъезд со двора, нужен домофон…"></label>
+      <div class="row2">
+        <label class="fld"><span>Ваше имя</span><input class="inp" name="cn" maxlength="30" placeholder="Имя" autocomplete="given-name"></label>
+        <label class="fld"><span>Телефон *</span><input class="inp" name="cp" type="tel" inputmode="tel" placeholder="+7 7__ ___ __ __" autocomplete="tel"></label>
+      </div>
+      <div class="fld"><span>Кому отправить</span>
+        <div class="qchips" data-tg><button type="button" class="qchip on" data-t="all">Всем свободным водителям</button><button type="button" class="qchip" data-t="fav">Только избранным</button><button type="button" class="qchip" data-t="pick">Выбрать водителей</button></div>
+      </div>
+      <div id="tgl" class="tg-list"></div>
+      <p class="err-msg" id="oerr" hidden></p>
+      <button type="button" class="btn btn-grad btn-lg btn-block" id="osend"><svg><use href="#i-feed"/></svg>Отправить водителям</button>
+      <button class="btn btn-wa btn-block" type="submit"><svg><use href="#i-wa"/></svg>Или сразу в WhatsApp ВЕЗУ</button>
+      <p class="fine">Телефон не публикуется: его увидит только водитель, который откликнется на заказ. Заказ закрывается через 24 часа или когда вы выберете водителя.</p>
+    </form>
+  </section>
+  <section data-tab="favs" hidden>
+    <h1>Мои <span class="grad-text">водители</span></h1>
+    <div id="favl" class="fav-list"></div>
+  </section>
+  <section data-tab="orders" hidden>
+    <h1>Мои <span class="grad-text">заказы</span></h1>
+    <div id="ordl" class="ord-list" aria-live="polite"></div>
+  </section>
+  <section data-tab="feed" hidden>
+    <h1>Лента <span class="grad-text">заказов</span></h1>
+    <div id="feedst"></div>
+    <div id="feedl" class="ord-list" aria-live="polite"></div>
+  </section>
+</main>
+{BN('')}{SCRIPTS('js/common.js','js/calc.js','js/config.js','js/cloud.js','js/favs.js','js/cab.js','js/app.js')}</body>
+</html>
+'''
+open('app.html','w').write(app)
 # ---------------- admin ----------------
 adm=head('Админка — ВЕЗУ','Служебная страница','admin.html',robots='\n<meta name="robots" content="noindex, nofollow">')+f'''
 <header class="top">
