@@ -25,5 +25,22 @@
    "type": "image/png",
    "purpose": "maskable"
   }
+ ],
+ "shortcuts": [
+  {
+   "name": "Лента заказов",
+   "short_name": "Лента",
+   "url": "./app.html#feed"
+  },
+  {
+   "name": "Заказать перевозку",
+   "short_name": "Заказ",
+   "url": "./app.html#order"
+  },
+  {
+   "name": "Мои заказы",
+   "short_name": "Мои заказы",
+   "url": "./app.html#orders"
+  }
  ]
 }
