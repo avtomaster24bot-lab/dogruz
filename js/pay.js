@@ -22,6 +22,7 @@
       '<li>Нажмите <b>«Я оплатил»</b> — откроется WhatsApp с готовым сообщением. Отправьте его, можно приложить чек.</li>' +
       '</ol>' +
       (card ? '' : '<p class="dirty">Сначала сохраните визитку в облаке в <a href="new.html#pro">конструкторе</a> — так мы поймём, какую визитку продлить.</p>') +
+      V.consentHtml('pay') +
       '<button type="button" class="btn btn-wa btn-block" id="ppaid"><svg><use href="#i-wa"/></svg>Я оплатил</button>' +
       '<p class="fine">Про продлевается вручную, обычно в течение дня. Если что-то не так — просто напишите в этот же чат.</p>', 'pay-sheet');
     var el = s.el;
@@ -31,6 +32,7 @@
       var b = e.target.closest('[data-m]'); if (!b) return;
       months = +b.dataset.m; el.querySelectorAll('#pm .qchip').forEach(function (x) { x.classList.toggle('on', x === b); }); sum();
     });
+    var consentV = V.consentGate(el, 'pay', el.querySelector('#ppaid'));
     el.querySelector('#pcopy').addEventListener('click', function () { V.copy(KASPI.replace(/^7/, '+7'), 'Номер скопирован'); });
     el.querySelector('#ppaid').addEventListener('click', function () {
       var text = 'Здравствуйте! Оплатил ВЕЗУ Про через Kaspi: ' + V.fmtNum(price() * months) + ' ₸ за ' + months + ' мес.' +
@@ -39,7 +41,7 @@
       // WhatsApp открываем сразу (иначе телефон заблокирует всплывающее окно), заявку пишем параллельно
       V.openWA(KASPI, text);
       if (card && C && C.key()) {
-        C.rpc('vz_pay_request', { p_key: C.key(), p_months: months }, { keepalive: true }).then(function () {
+        C.rpc('vz_pay_request', { p_key: C.key(), p_months: months, p_consent: consentV() }, { keepalive: true }).then(function () {
           card.pay_pending = true; if (onDone) onDone(card);
         }, function (e) { V.toast(e.message); });
       }

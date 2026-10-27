@@ -42,11 +42,12 @@
       '<ul class="pro-ul">' + li('Короткий адрес: <b>' + esc(C.siteBase().replace(/^https?:\/\//, '')) + 'имя</b>') + li('Фото видят все клиенты') +
       li('Место в каталоге водителей') + li('Статистика: просмотры, WhatsApp, звонки') + li('Без надписи «Сделано на ВЕЗУ»') + '</ul>' +
       slugField(sugg) + pubField(true) +
+      V.consentHtml('driver', C.ls('vezu-consent-driver') === V.CONSENT.driver.v) +
       '<button type="button" class="btn btn-grad btn-block" id="psave">Сохранить в облаке и включить Про</button>' +
       '<p class="fine">Регистрация не нужна — телефон получит секретный ключ доступа. Через 7 дней — ' + PRICE + ', оплата Kaspi через WhatsApp. ' +
       'Если не продлить, визитка и короткий адрес продолжат работать, но без фото, каталога и статистики.</p>' +
       '<button type="button" class="lnk" id="haskey">У меня уже есть ключ доступа</button>';
-    bindSlug(); checkSlug();
+    bindSlug(); checkSlug(); gate();
   }
   function statsHtml() {
     if (!stats) return '<p class="muted">Статистика загружается…</p>';
@@ -87,6 +88,7 @@
         '<button class="btn btn-glass" type="button" id="sshare" aria-label="Поделиться"><svg><use href="#i-share"/></svg></button></div>' : '') +
       (dirty ? '<p class="dirty">Есть изменения, которых ещё нет в облаке — нажмите «Сохранить».</p>' : '') +
       (pro ? slugField(card.slug || '') : '') + pubField(card.is_published) +
+      V.consentHtml('driver', C.ls('vezu-consent-driver') === V.CONSENT.driver.v) +
       '<button type="button" class="btn ' + (dirty ? 'btn-grad' : 'btn-glass') + ' btn-block" id="psave">Сохранить в облаке</button>' +
       '<div class="pro-stats"><h4>Моя статистика</h4><div id="pstats">' + (pro ? statsHtml() : '<p class="muted">Статистика доступна с Про.</p>') + '</div></div>' +
       (card.lifetime ? '' : '<button type="button" class="btn btn-wa btn-block" data-pay="1"><svg><use href="#i-wa"/></svg>' + (pro ? 'Продлить Про' : 'Подключить Про') + ' · ' + PRICE + '</button>') +
@@ -99,6 +101,7 @@
       '<button type="button" class="lnk" id="pdel">Удалить визитку из облака</button>' +
       '</div></details>';
     if (pro) { bindSlug(); checkSlug(); }
+    gate();
     if (window.VEZU_CAB) window.VEZU_CAB.render(card);
   }
   function render() {
@@ -142,8 +145,12 @@
       });
     }
   }
+  var consentV = function () { return null; };
+  function gate() { var b = document.getElementById('psave'); if (b && box.querySelector('[data-consent=driver]')) consentV = V.consentGate(box, 'driver', b); }
   function save() {
     if (busy) return;
+    var cons = consentV();
+    if (!cons) { V.toast('Поставьте галочку согласия на обработку данных'); return; }
     var d = B.data();
     if (!d.n || !d.p) { V.toast('Сначала укажите имя и номер WhatsApp'); document.querySelector('[data-go="1"]').click(); return; }
     var inp = document.getElementById('slug'), slug = inp ? inp.value.trim() : null;
@@ -152,8 +159,8 @@
     var first = !card, k = C.key() || C.newKey();
     busy = true; var btn = document.getElementById('psave'); btn.disabled = true; btn.textContent = 'Сохраняем…';
     C.rpc('vz_save_card', { p_key: k, p_data: d, p_slug: slug === null ? null : slug, p_veh: V.vehicle(d) || '', p_published: pub ? pub.checked : true,
-      p_ref: first ? (C.ls('vezu-ref') || null) : null })
-      .then(function (c) { card = c; C.ls('vezu-cloud-slug', c.slug || null); if (first) C.ls('vezu-ref', null); return syncPhoto(); })
+      p_ref: first ? (C.ls('vezu-ref') || null) : null, p_consent: cons })
+      .then(function (c) { card = c; C.ls('vezu-consent-driver', cons); C.ls('vezu-cloud-slug', c.slug || null); if (first) C.ls('vezu-ref', null); return syncPhoto(); })
       .then(function () {
         busy = false;
         B.setShort(card.slug ? C.shortUrl(card.slug) : '');

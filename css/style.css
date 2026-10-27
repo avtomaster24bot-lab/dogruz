@@ -627,3 +627,16 @@ body:has(.app){padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 .app section[data-tab][hidden]{display:none}
 .calc-msg{text-align:left;padding:0}
 .panel[hidden],.rv-sec[hidden]{display:none!important}
+/* ---------- согласие и политика ---------- */
+.consent{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.035);font-size:13px;line-height:1.45;color:var(--muted);cursor:pointer;text-align:left}
+.consent input{flex:none;width:22px;height:22px;margin:1px 0 0;accent-color:#4fd1ff}
+.consent a{color:var(--c)}
+.btn:disabled,.btn.need-consent{opacity:.45;cursor:not-allowed;box-shadow:none}
+.legal{padding-bottom:30px}.legal h1{margin:10px 0 6px}.legal h2{font-size:19px;margin:26px 0 8px}
+.legal p,.legal li{line-height:1.6;color:#dcdbf3}.legal ul{padding-left:20px}
+.legal-toc{display:flex;flex-wrap:wrap;gap:6px 14px;padding:12px 16px;border-radius:18px;margin-top:14px;font-size:14px}.legal-toc a{color:var(--c);text-decoration:none}
+.tbl{overflow-x:auto;border-radius:16px;border:1px solid var(--line)}
+.tbl table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:520px}.tbl th,.tbl td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.tbl th{background:rgba(255,255,255,.05)}
+.todo{display:inline-block;min-width:2em;padding:0 8px;border-radius:8px;border:1px dashed rgba(255,215,106,.55);color:#ffd76a;background:rgba(255,215,106,.07)}
+.mydata{padding:18px;border-radius:22px;display:grid;gap:12px;margin-top:24px}.mydata h2{margin:0}
+.legal-lnk{display:block;text-align:center;margin:6px auto 0;font-size:13px}.legal-foot{text-align:center;margin-top:10px}.legal-foot a{color:var(--muted)}

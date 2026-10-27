@@ -25,7 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="VEZU">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css?v=5d75ea27">
+<link rel="stylesheet" href="css/style.css?v=6b511798">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -102,10 +102,11 @@
         <div class="qchips" data-tg><button type="button" class="qchip on" data-t="all">Всем свободным водителям</button><button type="button" class="qchip" data-t="fav">Только избранным</button><button type="button" class="qchip" data-t="pick">Выбрать водителей</button></div>
       </div>
       <div id="tgl" class="tg-list"></div>
+      <label class="consent"><input type="checkbox" data-consent="order"><span>Мне 18+. Согласен на обработку имени, телефона и данных заказа, чтобы передать заказ выбранным водителям, по <a href="privacy.html" target="_blank" rel="noopener">Политике конфиденциальности</a>. Телефон увидит только водитель, которого я выберу. Пока данные хранятся у Supabase (Германия, ЕС).</span></label>
       <p class="err-msg" id="oerr" hidden></p>
       <button type="button" class="btn btn-grad btn-lg btn-block" id="osend"><svg><use href="#i-feed"/></svg>Отправить водителям</button>
       <button class="btn btn-wa btn-block" type="submit"><svg><use href="#i-wa"/></svg>Или сразу в WhatsApp ВЕЗУ</button>
-      <p class="fine">Телефон не публикуется: его увидит только водитель, который откликнется на заказ. Заказ закрывается через 24 часа или когда вы выберете водителя.</p>
+      <p class="fine">Телефон не публикуется: его увидит только водитель, которого вы выберете. Заказ закрывается через 24 часа или когда вы выберете водителя. <a href="privacy.html">Конфиденциальность</a></p>
     </form>
   </section>
   <section data-tab="favs" hidden>
@@ -129,12 +130,13 @@
   <a href="#feed" class="drv"><svg><use href="#i-feed"/></svg><span>Лента</span><em hidden>0</em></a>
 </nav>
 <script>try{if(localStorage.getItem('vezu-key'))document.body.classList.add('is-driver')}catch(e){}</script>
-<script src="js/common.js?v=fb0dc11f"></script>
+<p class="wrap narrow fine legal-foot"><a href="privacy.html">Политика конфиденциальности</a></p>
+<script src="js/common.js?v=a1d26d24"></script>
 <script src="js/calc.js?v=333e7752"></script>
 <script src="js/config.js?v=566bab7b"></script>
 <script src="js/cloud.js?v=984bde38"></script>
 <script src="js/favs.js?v=610baa8d"></script>
 <script src="js/cab.js?v=ead54bbf"></script>
-<script src="js/app.js?v=2ec0d3a2"></script>
+<script src="js/app.js?v=e32dca71"></script>
 </body>
 </html>

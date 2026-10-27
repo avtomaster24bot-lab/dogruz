@@ -1,6 +1,6 @@
 /* ВЕЗУ service worker: сеть в первую очередь, кэш — для работы офлайн */
-var CACHE = 'vezu-v12';
-var SHELL = ['./', 'index.html', 'card.html', 'new.html', 'tarify.html', 'catalog.html', 'app.html', 'js/config.js', 'js/calc.js', 'js/favs.js', 'js/reviews.js', 'js/cab.js', 'js/app.js', 'js/cloud.js', 'js/pro.js', 'js/pay.js', 'js/catalog.js', 'css/style.css', 'js/common.js', 'js/card.js', 'js/new.js',
+var CACHE = 'vezu-v13';
+var SHELL = ['./', 'index.html', 'card.html', 'new.html', 'tarify.html', 'catalog.html', 'app.html', 'privacy.html', 'js/config.js', 'js/calc.js', 'js/favs.js', 'js/reviews.js', 'js/cab.js', 'js/app.js', 'js/cloud.js', 'js/pro.js', 'js/pay.js', 'js/catalog.js', 'css/style.css', 'js/common.js', 'js/card.js', 'js/new.js',
   'js/vendor/qrcode.js', 'js/vendor/inflate.js', 'favicon.svg', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png',
   'img/hero-van-720.webp', 'img/v-kabluk.webp', 'img/v-gazel.webp', 'img/v-gazel-long.webp', 'img/v-truck3.webp'];
 self.addEventListener('install', function (e) {
@@ -18,7 +18,7 @@ self.addEventListener('activate', function (e) {
 // …/dogruz/<адрес>, редиректы 301, 404) идут в сеть напрямую, без service worker.
 // Для навигации нельзя отдавать ответ после редиректа (Chrome показывает ERR_FAILED), поэтому redirect: 'manual'.
 // Админку не кэшируем вовсе. Остальное — сеть в первую очередь с проверкой свежести (no-cache), кэш — только для офлайна.
-var PAGES = /^(|index\.html|card\.html|new\.html|tarify\.html|catalog\.html|app\.html)$/;
+var PAGES = /^(|index\.html|card\.html|new\.html|tarify\.html|catalog\.html|app\.html|privacy\.html)$/;
 var NOCACHE = /\/(admin\.html|js\/admin\.js)$/;
 self.addEventListener('fetch', function (e) {
   var req = e.request, u = new URL(req.url);

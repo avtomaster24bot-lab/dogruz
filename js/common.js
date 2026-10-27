@@ -465,6 +465,24 @@
       (pills ? '<div class="pills">' + pills + '</div>' : '') +
       '</div>';
   }
+  // ---------- согласие на обработку персональных данных (галочка не стоит по умолчанию) ----------
+  var POLICY = '<a href="privacy.html" target="_blank" rel="noopener">Политике конфиденциальности</a>';
+  var CONSENT = {
+    driver: { v: 'driver_v1', t: 'Мне 18+. Согласен на обработку и публикацию моих данных (имя, телефон, город, машина, цены, фото) в визитке и каталоге ВЕЗУ по ' + POLICY + '. Пока данные хранятся у Supabase (Германия, ЕС) — согласен на трансграничную передачу. Удалить визитку можно в любой момент.' },
+    order: { v: 'order_v1', t: 'Мне 18+. Согласен на обработку имени, телефона и данных заказа, чтобы передать заказ выбранным водителям, по ' + POLICY + '. Телефон увидит только водитель, которого я выберу. Пока данные хранятся у Supabase (Германия, ЕС).' },
+    pay: { v: 'pay_v1', t: 'Согласен на хранение сведений о моей подписке и оплате в течение 5 лет для налогового учёта по ' + POLICY + '.' }
+  };
+  function consentHtml(kind, checked) {
+    var c = CONSENT[kind];
+    return '<label class="consent"><input type="checkbox" data-consent="' + kind + '"' + (checked ? ' checked' : '') + '><span>' + c.t + '</span></label>';
+  }
+  // Кнопка btn неактивна, пока галочка не поставлена. Возвращает функцию → версия согласия или null.
+  function consentGate(root, kind, btn) {
+    var cb = root.querySelector('[data-consent="' + kind + '"]');
+    function sync() { if (btn) { btn.disabled = !cb.checked; btn.classList.toggle('need-consent', !cb.checked); } }
+    cb.addEventListener('change', sync); sync();
+    return function () { return cb.checked ? CONSENT[kind].v : null; };
+  }
   function reviewsOn() { var c = window.VEZU_CFG; return !!(c && c.REVIEWS_ENABLED); }
   function plural(n, a, b, c) { n = Math.abs(n) % 100; var m = n % 10; return n > 10 && n < 20 ? c : m === 1 ? a : m > 1 && m < 5 ? b : c; }
   // Статус водителя из облака: { s: 'free'|'busy', until } → текст (время — по Алматы)
@@ -765,7 +783,7 @@
     cardUrl: cardUrl, cardUrlAsync: cardUrlAsync, editUrl: editUrl,
     normPhone: normPhone, fmtPhone: fmtPhone, waLink: waLink, waApp: waApp, waApi: waApi, waIntent: waIntent, waHref: waHref, openWA: openWA, bindWaLink: bindWaLink, inAppBrowser: inAppBrowser,
     IS_MOBILE: IS_MOBILE, IS_ANDROID: IS_ANDROID, IS_IOS: IS_IOS, _nav: function (u) { location.href = u; }, gisLink: gisLink, gmapsLink: gmapsLink, fmtNum: fmtNum, fmtPrice: fmtPrice, orderText: orderText,
-    services: services, initials: initials, metaLine: metaLine, hoursText: hoursText, isOpen: isOpen, almatyHour: almatyHour, priceText: priceText, cardHero: cardHero, statusInfo: statusInfo, reviewsOn: reviewsOn, plural: plural, hhmm: hhmm, cardDetails: cardDetails, applyTheme: applyTheme,
+    services: services, initials: initials, metaLine: metaLine, hoursText: hoursText, isOpen: isOpen, almatyHour: almatyHour, priceText: priceText, cardHero: cardHero, statusInfo: statusInfo, reviewsOn: reviewsOn, CONSENT: CONSENT, consentHtml: consentHtml, consentGate: consentGate, plural: plural, hhmm: hhmm, cardDetails: cardDetails, applyTheme: applyTheme,
     qrSvg: qrSvg, qrPng: qrPng, vcf: vcf, contactIntent: contactIntent, addContact: addContact, download: download, fileName: fileName,
     toast: toast, copy: copy, share: share, bindOrderForm: bindOrderForm, bindInstall: bindInstall, cardManifest: cardManifest
   };

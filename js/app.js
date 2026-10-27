@@ -75,6 +75,7 @@
         (si ? '<em class="st-' + si.s + '">' + esc(si.short) + '</em>' : '') + '</label>';
     }).join('') : '<p class="muted">Загружаю водителей…</p>') + '<p class="fine">Заказ увидят только выбранные водители.</p>';
   }
+  var orderConsent = V.consentGate(form, 'order', $('#osend'));
   $('#tgl').addEventListener('change', function (e) { if (e.target.type === 'checkbox') { if (e.target.checked) picked[e.target.value] = 1; else delete picked[e.target.value]; } });
   $('#osend').addEventListener('click', function () {
     var err = $('#oerr'); err.hidden = true;
@@ -93,9 +94,11 @@
     if (slugs && !slugs.length) return fail('Отметьте хотя бы одного водителя.');
     C.ls('vezu-me', { n: o.name, p: phone });
     var b = this; b.disabled = true; b.textContent = 'Отправляю…';
-    C.rpc('vz_order_create', { p_dev: dev(), p_order: o, p_slugs: slugs }).then(function () {
+    if (!orderConsent()) return fail('Поставьте галочку согласия на обработку данных.');
+    C.rpc('vz_order_create', { p_dev: dev(), p_order: o, p_slugs: slugs, p_consent: orderConsent() }).then(function () {
       b.disabled = false; b.innerHTML = '<svg><use href="#i-feed"/></svg>Отправить водителям';
       ['what', 'from', 'to', 'note', 'price', 'at'].forEach(function (n) { var i = form.querySelector('[name=' + n + ']'); if (i) i.value = ''; });
+      var cb = form.querySelector('[data-consent=order]'); cb.checked = false; cb.dispatchEvent(new Event('change'));
       if (form._calcReset) form._calcReset();
       V.toast('Заказ отправлен! Ответы водителей — в «Мои заказы»', 4000);
       location.hash = '#orders';
@@ -193,7 +196,7 @@
       return '<article class="ord glass' + (o.personal ? ' personal' : '') + (o.mine ? ' mine' : '') + '"><div class="ord-h">' + tag + '<span class="muted">' + esc(ago(o.at)) + (o.responses ? ' · откликов: ' + o.responses : '') + '</span></div>' +
         '<h3>' + esc(o.what || 'Перевозка') + '</h3>' + route(o) + facts(o) + (est(o.calc) ? '<p class="o-est">Оценка: ' + est(o.calc) + '</p>' : '') +
         (o.note ? '<p class="resp-c">' + esc(o.note) + '</p>' : '') +
-        '<p class="fine">Клиент: ' + esc(o.name || 'без имени') + (o.phone ? ' · +' + esc(o.phone) : ' · телефон откроется после отклика') + '</p>' +
+        (o.phone ? '<p class="fine">Клиент: ' + esc(o.name || 'без имени') + ' · +' + esc(o.phone) + '</p>' : '<p class="fine">' + (o.my ? 'Телефон появится, когда клиент выберет вас. Клиент видит ваш отклик и может написать вам в WhatsApp.' : 'Телефон клиента увидит только водитель, которого клиент выберет.') + '</p>') +
         (ml ? '<a class="lnk" href="' + esc(ml) + '" target="_blank" rel="noopener">Маршрут на карте</a>' : '') +
         (o.my ? '<p class="my-resp">Ваш отклик: ' + (o.my.price ? V.fmtNum(o.my.price) + ' ₸' : 'без цены') + (o.my.comment ? ' · ' + esc(o.my.comment) : '') + '</p>' : '') +
         '<div class="resp-b">' + (o.phone ? '<a class="btn btn-wa btn-sm" href="#" data-wa="' + esc(o.phone) + '" data-id="' + o.id + '"><svg><use href="#i-wa"/></svg>WhatsApp</a><a class="btn btn-glass btn-sm" href="tel:+' + esc(o.phone) + '"><svg><use href="#i-phone"/></svg>Звонок</a>' : '') +
@@ -210,11 +213,11 @@
     var s = V.sheet('Беру заказ', '<p class="muted">' + esc(o.what || 'Перевозка') + '</p>' +
       '<label class="fld"><span>Ваша цена (необязательно)</span><input class="inp" name="tp" inputmode="numeric" placeholder="' + (o.calc && o.calc.lo ? V.fmtNum(o.calc.lo) : '10 000') + '" value="' + (o.my && o.my.price ? V.fmtNum(o.my.price) : '') + '"><b class="suffix">₸</b></label>' +
       '<label class="fld"><span>Комментарий</span><input class="inp" name="tc" maxlength="200" placeholder="Буду через 30 минут" value="' + esc(o.my ? o.my.comment : '') + '"></label>' +
-      '<button type="button" class="btn btn-grad btn-block" data-go>Откликнуться</button><p class="fine">После отклика вы увидите телефон клиента. Клиент выберет водителя — заказ закроется для остальных.</p>', 'take-sheet');
+      '<button type="button" class="btn btn-grad btn-block" data-go>Откликнуться</button><p class="fine">Клиент увидит ваш отклик и сможет написать вам в WhatsApp. Когда клиент выберет вас, здесь появится его телефон; заказ закроется для остальных.</p>', 'take-sheet');
     var tp = s.el.querySelector('[name=tp]'); tp.addEventListener('input', function () { tp.value = V.fmtNum(tp.value.replace(/\D/g, '').slice(0, 8)); });
     s.el.querySelector('[data-go]').addEventListener('click', function () {
       C.rpc('vz_order_respond', { p_key: C.key(), p_id: o.id, p_price: +tp.value.replace(/\D/g, '') || null, p_comment: s.el.querySelector('[name=tc]').value }).then(function () {
-        s.close(); V.toast('Отклик отправлен! Теперь можно написать клиенту'); loadFeed();
+        s.close(); V.toast('Отклик отправлен! Клиент увидит его и напишет вам'); loadFeed();
       }, function (er) { V.toast(er.message); });
     });
   });

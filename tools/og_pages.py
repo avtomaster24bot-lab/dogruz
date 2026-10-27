@@ -108,7 +108,10 @@ def main():
     token = os.environ.get('VZ_OG_TOKEN', '').strip()
     if not token:
         sys.exit('VZ_OG_TOKEN не задан')
-    cards = [c for c in fetch(token) if SLUG.match(c.get('slug') or '') and '--' not in c['slug']]
+    # Персональные данные водителей (имя, телефон) в репозиторий GitHub не пишем: превью — только для визитки
+    # владельца сервиса (VZ_OG_ONLY, по умолчанию vezu). Остальные короткие адреса работают через 404.html.
+    only = {x.strip() for x in os.environ.get('VZ_OG_ONLY', 'vezu').split(',') if x.strip()}
+    cards = [c for c in fetch(token) if SLUG.match(c.get('slug') or '') and '--' not in c['slug'] and c['slug'] in only]
     try:
         old = set(json.load(open(MANIFEST)))
     except FileNotFoundError:

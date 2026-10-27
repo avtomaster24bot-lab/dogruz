@@ -152,6 +152,21 @@ alter table public.vz_review_complaints enable row level security;
 revoke all on public.vz_reviews, public.vz_review_invites, public.vz_review_complaints from anon, authenticated;
 revoke all on sequence public.vz_reviews_id_seq, public.vz_review_complaints_id_seq from anon, authenticated;
 
+-- Журнал согласий на обработку персональных данных (доказательство согласия). Пишут только функции.
+create table if not exists public.vz_consents (
+  id         bigint generated always as identity primary key,
+  kind       text not null check (kind in ('driver', 'order', 'review', 'pay')),
+  version    text not null,
+  card_id    uuid references public.vz_cards(id) on delete set null,
+  order_id   uuid,                               -- без FK: запись о согласии живёт дольше заказа
+  dev_hash   text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists vz_consents_card on public.vz_consents (card_id);
+create index if not exists vz_consents_order on public.vz_consents (order_id);
+alter table public.vz_consents enable row level security;
+revoke all on public.vz_consents from anon, authenticated;
+
 alter table public.vz_cards   enable row level security;
 alter table public.vz_events  enable row level security;
 alter table public.vz_admins  enable row level security;
@@ -179,6 +194,23 @@ create or replace function public.vz_ping() returns int language sql stable set 
 create or replace function vz_private.vz_reviews_on() returns boolean
 language sql stable security definer set search_path = '' as $$
   select coalesce((select value = 'true' from public.vz_settings where key = 'reviews_enabled'), false);
+$$;
+
+-- Согласие: актуальные версии текстов галочек. consent_required = 'true' в vz_settings — без согласия сохранить нельзя.
+create or replace function vz_private.vz_consent_check(p_kind text, p_consent text) returns boolean
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  if p_consent is not null and p_consent = p_kind || '_v1' then return true; end if;
+  if coalesce((select value = 'true' from public.vz_settings where key = 'consent_required'), false) then
+    raise exception 'Нужно согласие на обработку персональных данных — поставьте галочку';
+  end if;
+  return false;
+end $$;
+create or replace function vz_private.vz_consent_log(p_kind text, p_version text, p_card uuid, p_order uuid, p_dev text) returns void
+language sql security definer set search_path = '' as $$
+  insert into public.vz_consents (kind, version, card_id, order_id, dev_hash)
+  select p_kind, p_version, p_card, p_order, coalesce(p_dev, '')
+  where p_order is not null or not exists (select 1 from public.vz_consents x where x.kind = p_kind and x.version = p_version and x.card_id = p_card and x.dev_hash = coalesce(p_dev, ''));
 $$;
 
 -- Статус: показываем, только если водитель обновлял его за последние 24 часа. «Занят до» по истечении — снова «Свободен».
@@ -232,13 +264,16 @@ end $$;
 -- p_slug: null — не менять, '' — убрать.
 drop function if exists public.vz_save_card(text, jsonb, text, text, boolean);
 drop function if exists vz_private.vz_save_card(text, jsonb, text, text, boolean);
+drop function if exists public.vz_save_card(text, jsonb, text, text, boolean, text);
+drop function if exists vz_private.vz_save_card(text, jsonb, text, text, boolean, text);
 -- p_ref: код пригласившего водителя (только для новой визитки, один раз на номер телефона): ему +7 дней Про.
 create or replace function vz_private.vz_save_card(p_key text, p_data jsonb, p_slug text default null, p_veh text default '',
-  p_published boolean default true, p_ref text default null) returns jsonb
+  p_published boolean default true, p_ref text default null, p_consent text default null) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare h text := vz_private.vz_hash(p_key); c public.vz_cards; d jsonb := '{}'::jsonb; k text; s text; pro boolean; rid uuid;
+declare h text := vz_private.vz_hash(p_key); c public.vz_cards; d jsonb := '{}'::jsonb; k text; s text; pro boolean; rid uuid; ok boolean;
 begin
   if h is null then raise exception 'Неверный ключ доступа'; end if;
+  ok := vz_private.vz_consent_check('driver', p_consent);
   if jsonb_typeof(p_data) is distinct from 'object' then raise exception 'Нет данных визитки'; end if;
   foreach k in array array['n','p','c','w','t','s','m','pr','pu','hs','he','tg','z','f','th','i','rt'] loop
     if p_data ? k then d := d || jsonb_build_object(k, p_data->k); end if;
@@ -296,6 +331,7 @@ begin
       update public.vz_cards set slug = s where id = c.id returning * into c;
     end if;
   end if;
+  if ok then perform vz_private.vz_consent_log('driver', p_consent, c.id, null, h); end if;
   return vz_private.vz_priv(c);
 exception when unique_violation then raise exception 'Адрес или номер уже заняты';
 end $$;
@@ -444,15 +480,18 @@ end $$;
 
 -- ---------- v6: оплата, списки админа, превью ссылок ----------
 -- Водитель нажал «Я оплатил» — заявка для админа (одна открытая заявка на визитку).
-create or replace function vz_private.vz_pay_request(p_key text, p_months int default 1) returns boolean
+drop function if exists public.vz_pay_request(text, int);
+drop function if exists vz_private.vz_pay_request(text, int);
+create or replace function vz_private.vz_pay_request(p_key text, p_months int default 1, p_consent text default null) returns boolean
 language plpgsql security definer set search_path = '' as $$
-declare cid uuid;
+declare cid uuid; ok boolean := vz_private.vz_consent_check('pay', p_consent);
 begin
   if p_months not in (1, 3, 6, 12) then raise exception 'Срок: 1, 3, 6 или 12 месяцев'; end if;
   select id into cid from public.vz_cards where key_hash = vz_private.vz_hash(p_key);
   if cid is null then raise exception 'Сначала сохраните визитку в облаке'; end if;
   update public.vz_pay_requests set months = p_months, created_at = now() where card_id = cid and status = 'new';
   if not found then insert into public.vz_pay_requests (card_id, months) values (cid, p_months); end if;
+  if ok then perform vz_private.vz_consent_log('pay', p_consent, cid, null, vz_private.vz_hash(p_key)); end if;
   return true;
 end $$;
 
@@ -726,16 +765,19 @@ language sql stable set search_path = '' as $$
 $$;
 
 -- Заказ для водителя: без телефона клиента, пока водитель не откликнулся.
+-- show_phone: имя и телефон клиента — только водителю, которого клиент выбрал (и самому клиенту / админу).
 create or replace function vz_private.vz_order_pub(o public.vz_orders, show_phone boolean) returns jsonb
 language sql stable set search_path = '' as $$
   select jsonb_build_object('id', o.id, 'what', o.what, 'from', o.from_addr, 'to', o.to_addr, 'when', o.when_text, 'when_at', o.when_at,
-    'calc', o.calc, 'note', o.note, 'name', o.name, 'scope', o.scope, 'status', o.status, 'at', o.created_at, 'expires_at', o.expires_at,
+    'calc', o.calc, 'note', o.note, 'name', case when show_phone then o.name end, 'scope', o.scope, 'status', o.status, 'at', o.created_at, 'expires_at', o.expires_at,
     'phone', case when show_phone then o.phone end);
 $$;
 
-create or replace function vz_private.vz_order_create(p_dev text, p_order jsonb, p_slugs text[] default null) returns uuid
+drop function if exists public.vz_order_create(text, jsonb, text[]);
+drop function if exists vz_private.vz_order_create(text, jsonb, text[]);
+create or replace function vz_private.vz_order_create(p_dev text, p_order jsonb, p_slugs text[] default null, p_consent text default null) returns uuid
 language plpgsql security definer set search_path = '' as $$
-declare h text := vz_private.vz_hash(p_dev); ip text := vz_private.vz_ip(); o jsonb := coalesce(p_order, '{}'); oid uuid;
+declare ok boolean := vz_private.vz_consent_check('order', p_consent); h text := vz_private.vz_hash(p_dev); ip text := vz_private.vz_ip(); o jsonb := coalesce(p_order, '{}'); oid uuid;
   ph text := regexp_replace(coalesce(o->>'phone', ''), '[^0-9]', '', 'g'); wat timestamptz; c jsonb := '{}'; n int;
 begin
   if h is null then raise exception 'Не удалось отправить заказ'; end if;
@@ -773,6 +815,7 @@ begin
     get diagnostics n = row_count;
     if n = 0 then raise exception 'Выбранные водители не найдены'; end if;
   end if;
+  if ok then perform vz_private.vz_consent_log('order', p_consent, null, oid, h); end if;
   return oid;
 end $$;
 
@@ -838,7 +881,7 @@ begin
   if c.is_blocked then return '[]'::jsonb; end if;
   return (select coalesce(jsonb_agg(j order by mine desc, personal desc, at desc), '[]'::jsonb) from (
     select o.created_at at, coalesce(o.taken_card = c.id, false) mine, (t.card_id is not null) personal,
-      vz_private.vz_order_pub(o, r.card_id is not null) || jsonb_build_object('personal', t.card_id is not null,
+      vz_private.vz_order_pub(o, coalesce(o.taken_card = c.id, false)) || jsonb_build_object('personal', t.card_id is not null,
         'mine', coalesce(o.taken_card = c.id, false), 'my', case when r.card_id is not null then jsonb_build_object('price', r.price, 'comment', r.comment) end,
         'responses', (select count(*) from public.vz_order_responses x where x.order_id = o.id)) j
     from public.vz_orders o
@@ -862,7 +905,7 @@ begin
   if vz_private.vz_review_flag(cm) in ('ссылка', 'мат') then raise exception 'В комментарии нельзя: ссылки, мат'; end if;
   insert into public.vz_order_responses (order_id, card_id, price, comment) values (o.id, c.id, nullif(greatest(p_price, 0), 0), cm)
   on conflict (order_id, card_id) do update set price = excluded.price, comment = excluded.comment, created_at = now();
-  return vz_private.vz_order_pub(o, true);
+  return vz_private.vz_order_pub(o, false);
 end $$;
 
 -- Админ: заказы, скрыть, заблокировать устройство.
@@ -910,10 +953,10 @@ create or replace function public.vz_me(p_key text) returns jsonb
 language sql security invoker set search_path = '' as $$ select vz_private.vz_me(p_key) $$;
 create or replace function public.vz_slug_free(p_slug text, p_key text default null) returns text
 language sql security invoker set search_path = '' as $$ select vz_private.vz_slug_free(p_slug, p_key) $$;
-create or replace function public.vz_save_card(p_key text, p_data jsonb, p_slug text default null, p_veh text default '', p_published boolean default true, p_ref text default null) returns jsonb
-language sql security invoker set search_path = '' as $$ select vz_private.vz_save_card(p_key, p_data, p_slug, p_veh, p_published, p_ref) $$;
-create or replace function public.vz_pay_request(p_key text, p_months int default 1) returns boolean
-language sql security invoker set search_path = '' as $$ select vz_private.vz_pay_request(p_key, p_months) $$;
+create or replace function public.vz_save_card(p_key text, p_data jsonb, p_slug text default null, p_veh text default '', p_published boolean default true, p_ref text default null, p_consent text default null) returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_save_card(p_key, p_data, p_slug, p_veh, p_published, p_ref, p_consent) $$;
+create or replace function public.vz_pay_request(p_key text, p_months int default 1, p_consent text default null) returns boolean
+language sql security invoker set search_path = '' as $$ select vz_private.vz_pay_request(p_key, p_months, p_consent) $$;
 create or replace function public.vz_admin_lists(p_admin text) returns jsonb
 language sql security invoker set search_path = '' as $$ select vz_private.vz_admin_lists(p_admin) $$;
 create or replace function public.vz_admin_issue_key(p_admin text, p_card uuid) returns text
@@ -928,8 +971,8 @@ create or replace function public.vz_my_stats(p_key text) returns jsonb
 language sql security invoker set search_path = '' as $$ select vz_private.vz_my_stats(p_key) $$;
 create or replace function public.vz_card(p_slug text) returns jsonb
 language sql security invoker set search_path = '' as $$ select vz_private.vz_card(p_slug) $$;
-create or replace function public.vz_order_create(p_dev text, p_order jsonb, p_slugs text[] default null) returns uuid
-language sql security invoker set search_path = '' as $$ select vz_private.vz_order_create(p_dev, p_order, p_slugs) $$;
+create or replace function public.vz_order_create(p_dev text, p_order jsonb, p_slugs text[] default null, p_consent text default null) returns uuid
+language sql security invoker set search_path = '' as $$ select vz_private.vz_order_create(p_dev, p_order, p_slugs, p_consent) $$;
 create or replace function public.vz_my_orders(p_dev text) returns jsonb
 language sql security invoker set search_path = '' as $$ select vz_private.vz_my_orders(p_dev) $$;
 create or replace function public.vz_order_pick(p_dev text, p_id uuid, p_slug text) returns boolean
@@ -997,8 +1040,8 @@ end $$;
 grant execute on function public.vz_ping() to anon, authenticated;
 grant execute on function public.vz_me(text), vz_private.vz_me(text) to anon, authenticated;
 grant execute on function public.vz_slug_free(text, text), vz_private.vz_slug_free(text, text) to anon, authenticated;
-grant execute on function public.vz_save_card(text, jsonb, text, text, boolean, text), vz_private.vz_save_card(text, jsonb, text, text, boolean, text) to anon, authenticated;
-grant execute on function public.vz_pay_request(text, int), vz_private.vz_pay_request(text, int) to anon, authenticated;
+grant execute on function public.vz_save_card(text, jsonb, text, text, boolean, text, text), vz_private.vz_save_card(text, jsonb, text, text, boolean, text, text) to anon, authenticated;
+grant execute on function public.vz_pay_request(text, int, text), vz_private.vz_pay_request(text, int, text) to anon, authenticated;
 grant execute on function public.vz_admin_lists(text), vz_private.vz_admin_lists(text) to anon, authenticated;
 grant execute on function public.vz_admin_dismiss(text, bigint), vz_private.vz_admin_dismiss(text, bigint) to anon, authenticated;
 grant execute on function public.vz_admin_issue_key(text, uuid), vz_private.vz_admin_issue_key(text, uuid) to anon, authenticated;
@@ -1007,7 +1050,7 @@ grant execute on function public.vz_delete_card(text), vz_private.vz_delete_card
 grant execute on function public.vz_my_stats(text), vz_private.vz_my_stats(text) to anon, authenticated;
 grant execute on function public.vz_card(text), vz_private.vz_card(text) to anon, authenticated;
 grant execute on function public.vz_catalog(text, text, int, int, int, boolean), vz_private.vz_catalog(text, text, int, int, int, boolean) to anon, authenticated;
-grant execute on function public.vz_order_create(text, jsonb, text[]), vz_private.vz_order_create(text, jsonb, text[]) to anon, authenticated;
+grant execute on function public.vz_order_create(text, jsonb, text[], text), vz_private.vz_order_create(text, jsonb, text[], text) to anon, authenticated;
 grant execute on function public.vz_my_orders(text), vz_private.vz_my_orders(text) to anon, authenticated;
 grant execute on function public.vz_order_pick(text, uuid, text), vz_private.vz_order_pick(text, uuid, text) to anon, authenticated;
 grant execute on function public.vz_order_cancel(text, uuid), vz_private.vz_order_cancel(text, uuid) to anon, authenticated;

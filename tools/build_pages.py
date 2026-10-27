@@ -39,7 +39,7 @@ LOGO=lambda sub: f'<a class="logo" href="./" aria-label="ВЕЗУ — на гл�
 FOOT='''<footer class="foot">
   <div class="wrap">
     <span>© 2026 ВЕЗУ · грузоперевозки до 3 тонн</span>
-    <span><a href="new.html">Создать визитку</a> · <a href="catalog.html">Водители</a> · <a href="tarify.html">Тарифы</a></span>
+    <span><a href="new.html">Создать визитку</a> · <a href="catalog.html">Водители</a> · <a href="tarify.html">Тарифы</a> · <a href="privacy.html">Конфиденциальность</a></span>
   </div>
 </footer>
 '''
@@ -200,6 +200,7 @@ card=head('Визитка водителя — ВЕЗУ','Грузоперево
     <button class="lnk" id="install" type="button" hidden><svg><use href="#i-install"/></svg><span data-i18n="install">Установить на телефон</span></button>
     <a class="lnk" id="edit" href="new.html"><svg><use href="#i-edit"/></svg><span data-i18n="edit">Редактировать визитку</span></a>
   </div>
+  <a class="lnk legal-lnk" href="privacy.html">Политика конфиденциальности</a>
   <a class="made" id="made" href="./" data-i18n="made_by">Сделано на ВЕЗУ — сделай свою визитку</a>
 </main>
 
@@ -485,10 +486,11 @@ app=head('Заказ перевозки — ВЕЗУ','Опишите груз �
         <div class="qchips" data-tg><button type="button" class="qchip on" data-t="all">Всем свободным водителям</button><button type="button" class="qchip" data-t="fav">Только избранным</button><button type="button" class="qchip" data-t="pick">Выбрать водителей</button></div>
       </div>
       <div id="tgl" class="tg-list"></div>
+      <label class="consent"><input type="checkbox" data-consent="order"><span>Мне 18+. Согласен на обработку имени, телефона и данных заказа, чтобы передать заказ выбранным водителям, по <a href="privacy.html" target="_blank" rel="noopener">Политике конфиденциальности</a>. Телефон увидит только водитель, которого я выберу. Пока данные хранятся у Supabase (Германия, ЕС).</span></label>
       <p class="err-msg" id="oerr" hidden></p>
       <button type="button" class="btn btn-grad btn-lg btn-block" id="osend"><svg><use href="#i-feed"/></svg>Отправить водителям</button>
       <button class="btn btn-wa btn-block" type="submit"><svg><use href="#i-wa"/></svg>Или сразу в WhatsApp ВЕЗУ</button>
-      <p class="fine">Телефон не публикуется: его увидит только водитель, который откликнется на заказ. Заказ закрывается через 24 часа или когда вы выберете водителя.</p>
+      <p class="fine">Телефон не публикуется: его увидит только водитель, которого вы выберете. Заказ закрывается через 24 часа или когда вы выберете водителя. <a href="privacy.html">Конфиденциальность</a></p>
     </form>
   </section>
   <section data-tab="favs" hidden>
@@ -505,10 +507,38 @@ app=head('Заказ перевозки — ВЕЗУ','Опишите груз �
     <div id="feedl" class="ord-list" aria-live="polite"></div>
   </section>
 </main>
-{BN('')}{SCRIPTS('js/common.js','js/calc.js','js/config.js','js/cloud.js','js/favs.js','js/cab.js','js/app.js')}</body>
+{BN('')}<p class="wrap narrow fine legal-foot"><a href="privacy.html">Политика конфиденциальности</a></p>
+{SCRIPTS('js/common.js','js/calc.js','js/config.js','js/cloud.js','js/favs.js','js/cab.js','js/app.js')}</body>
 </html>
 '''
 open('app.html','w').write(app)
+# ---------------- privacy ----------------
+priv=head('Политика конфиденциальности — ВЕЗУ','Какие данные собирает ВЕЗУ, зачем, где хранит и как их удалить.','privacy.html')+f'''
+<header class="top">
+  <div class="wrap narrow">
+    {LOGO('конфиденциальность')}
+    <nav class="topnav"><a href="./">Главная</a></nav>
+  </div>
+</header>
+'''+open('tools/privacy_body.html').read()+f'''
+{FOOT}
+{SCRIPTS('js/common.js')}<script>
+(function () {{
+  var V = window.VEZU, k = 'Удалить мои данные';
+  document.getElementById('pdk').addEventListener('click', function (e) {{
+    var b = e.target.closest('[data-k]'); if (!b) return; k = b.dataset.k;
+    this.querySelectorAll('.qchip').forEach(function (x) {{ x.classList.toggle('on', x === b); }});
+  }});
+  document.getElementById('pdgo').addEventListener('click', function () {{
+    var who = document.getElementById('pdw').value, id = document.getElementById('pdi').value.trim();
+    V.openWA(V.SITE_PHONE, 'Здравствуйте! Запрос по персональным данным (ВЕЗУ).\nЧто нужно: ' + k + '.\nЯ: ' + who + (id ? '.\nВизитка / телефон: ' + id : '') + '.\nДата запроса: ' + new Date().toLocaleDateString('ru-RU'));
+  }});
+}})();
+</script>
+</body>
+</html>
+'''
+open('privacy.html','w').write(priv)
 # ---------------- admin ----------------
 adm=head('Админка — ВЕЗУ','Служебная страница','admin.html',robots='\n<meta name="robots" content="noindex, nofollow">')+f'''
 <header class="top">
