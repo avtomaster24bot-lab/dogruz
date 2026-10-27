@@ -531,7 +531,7 @@ priv=head('Политика конфиденциальности — ВЕЗУ','
   }});
   document.getElementById('pdgo').addEventListener('click', function () {{
     var who = document.getElementById('pdw').value, id = document.getElementById('pdi').value.trim();
-    V.openWA(V.SITE_PHONE, 'Здравствуйте! Запрос по персональным данным (ВЕЗУ).\nЧто нужно: ' + k + '.\nЯ: ' + who + (id ? '.\nВизитка / телефон: ' + id : '') + '.\nДата запроса: ' + new Date().toLocaleDateString('ru-RU'));
+    V.openWA(V.SITE_PHONE, 'Здравствуйте! Запрос по персональным данным (ВЕЗУ).\\nЧто нужно: ' + k + '.\\nЯ: ' + who + (id ? '.\\nВизитка / телефон: ' + id : '') + '.\\nДата запроса: ' + new Date().toLocaleDateString('ru-RU'));
   }});
 }})();
 </script>
