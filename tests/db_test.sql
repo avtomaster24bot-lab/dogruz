@@ -209,3 +209,18 @@ select public.vz_share('bad', 'wa', 'testdevice123', null);
 do $$ begin if (select count(*) from public.vz_shares where dev = md5('vz-share:testdevice123')) <> 1 then raise exception 'share count'; end if; end $$;
 delete from public.vz_shares where dev = md5('vz-share:testdevice123');
 select 'SHARES OK';
+
+-- v10 retention: тестовые заказы разного возраста
+insert into public.vz_orders (dev_hash, what, name, phone, note, ip_hash, calc, created_at, expires_at) values
+ ('rt-test', 'RT fresh', 'Тест', '77000000001', 'n', 'ip', '{"a":{"lat":1},"b":{"lat":2},"km":3}', now() - interval '2 days', now() - interval '1 day'),
+ ('rt-test', 'RT 8d', 'Тест', '77000000002', 'n', 'ip', '{"a":{"lat":1},"b":{"lat":2},"km":3}', now() - interval '9 days', now() - interval '8 days'),
+ ('rt-test', 'RT 31d', 'Тест', '77000000003', 'n', 'ip', '{"km":3}', now() - interval '31 days', now() - interval '30 days');
+select 'retention', vz_private.vz_retention() - 'at';
+do $$ begin
+  if (select count(*) from public.vz_orders where dev_hash = 'rt-test') <> 2 then raise exception 'rt delete'; end if;
+  if (select phone from public.vz_orders where what = 'RT 8d') <> '70000000000' or (select calc from public.vz_orders where what = 'RT 8d') <> '{"km":3}'::jsonb then raise exception 'rt anon'; end if;
+  if (select phone from public.vz_orders where what = 'RT fresh') <> '77000000001' then raise exception 'rt fresh touched'; end if;
+end $$;
+select 'retention second run', vz_private.vz_retention() - 'at';
+delete from public.vz_orders where dev_hash = 'rt-test';
+select 'RETENTION OK';

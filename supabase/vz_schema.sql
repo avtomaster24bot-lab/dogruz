@@ -1129,3 +1129,35 @@ create or replace function public.vz_share(p_src text, p_ch text, p_device text,
 language sql security invoker set search_path = '' as $$ select vz_private.vz_share(p_src, p_ch, p_device, p_slug) $$;
 revoke all on function vz_private.vz_share(text, text, text, text), public.vz_share(text, text, text, text) from public;
 grant execute on function public.vz_share(text, text, text, text), vz_private.vz_share(text, text, text, text) to anon, authenticated;
+
+-- ---------- v10: сроки хранения и автоочистка (политика конфиденциальности, раздел 7) ----------
+-- Трогаем ТОЛЬКО данные заказов клиентов и хеши IP. НЕ трогаем: визитки, статистику (vz_events),
+-- счётчик «Поделиться» (vz_shares), журнал согласий (vz_consents), устройства, оплаты, am_* таблицы.
+--  1) через 7 дней после закрытия заказа (истёк 24 ч / выбран водитель) — стираем имя, телефон, комментарий,
+--     хеш IP и точные координаты точек маршрута (телефон заменяется техническим 70000000000);
+--  2) через 30 дней после создания заказ удаляется целиком (адресаты и отклики водителей — каскадом);
+--  3) хеш IP в отзывах стирается через 30 дней.
+-- Запуск: pg_cron ежедневно в 22:00 UTC = 03:00 Алматы (задача vz-retention).
+create or replace function vz_private.vz_retention() returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare a int; o int; r int;
+begin
+  update public.vz_orders
+     set name = '', phone = '70000000000', note = '', ip_hash = '', calc = calc - 'a' - 'b'
+   where expires_at < now() - interval '7 days'
+     and (phone <> '70000000000' or name <> '' or note <> '' or ip_hash <> '' or calc ? 'a' or calc ? 'b');
+  get diagnostics a = row_count;
+  delete from public.vz_orders where created_at < now() - interval '30 days';
+  get diagnostics o = row_count;
+  update public.vz_reviews set ip_hash = '' where ip_hash <> '' and created_at < now() - interval '30 days';
+  get diagnostics r = row_count;
+  return jsonb_build_object('at', now(), 'orders_anonymized', a, 'orders_deleted', o, 'reviews_ip_cleared', r);
+end $$;
+revoke all on function vz_private.vz_retention() from public, anon, authenticated;
+
+do $$ begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.unschedule(jobid) from cron.job where jobname = 'vz-retention';
+    perform cron.schedule('vz-retention', '0 22 * * *', 'select vz_private.vz_retention()');
+  end if;
+end $$;
