@@ -149,7 +149,7 @@
   function respHtml(o, r) {
     var chosen = o.taken === r.slug;
     return '<div class="resp' + (chosen ? ' chosen' : '') + '"><a class="resp-h" href="' + esc(C.shortUrl(r.slug)) + '"><i class="cat-av">' + (r.photo ? '<img src="' + esc(C.photoUrl(r.photo)) + '" alt="" onerror="this.remove()">' : '') + '<b>' + esc(V.initials(r.n)) + '</b></i>' +
-      '<span><b>' + esc(r.n) + (chosen ? ' · выбран' : '') + '</b><small>' + esc([r.c, r.w].filter(Boolean).join(' · ')) + (V.reviewsOn() && r.rating && r.rating.n ? ' · ★ ' + String(r.rating.avg).replace('.', ',') : '') + '</small></span>' +
+      '<span><b>' + esc(r.n) + (r.v ? ' <em class="vf-b">✓ Проверен</em>' : '') + (chosen ? ' · выбран' : '') + '</b><small>' + esc([r.c, r.w].filter(Boolean).join(' · ')) + (V.reviewsOn() && r.rating && r.rating.n ? ' · ★ ' + String(r.rating.avg).replace('.', ',') : '') + '</small></span>' +
       (r.price ? '<em class="resp-p">' + V.fmtNum(r.price) + ' ₸</em>' : '') + '</a>' +
       (r.comment ? '<p class="resp-c">«' + esc(r.comment) + '»</p>' : '') +
       '<div class="resp-b"><a class="btn btn-wa btn-sm" href="#" data-wa="' + esc(r.p) + '" data-n="' + esc(r.n) + '"><svg><use href="#i-wa"/></svg>WhatsApp</a><a class="btn btn-glass btn-sm" href="tel:+' + esc(r.p) + '"><svg><use href="#i-phone"/></svg>Звонок</a>' +

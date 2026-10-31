@@ -695,3 +695,10 @@ body:has(.app) .share-fab{display:none}
 .o-cargo{display:inline-block;margin:0 8px 4px 0;padding:3px 9px;border-radius:999px;background:rgba(79,209,255,.14);color:var(--c);font-size:12px;font-weight:800;vertical-align:middle}
 #tgsec h3{display:flex;align-items:center;gap:8px}.tg-ic{width:22px;height:22px;color:#2aabee}
 #tgsec [data-tg]{display:grid;gap:10px}.tg-ok{margin:0;font-weight:700}
+#vfsec [data-vf]{display:grid;gap:10px}.vf-files{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vf-f{display:flex;align-items:center;justify-content:center;text-align:center;min-height:64px;padding:8px;border:1.5px dashed rgba(255,255,255,.25);border-radius:14px;font-size:14px;cursor:pointer}
+.vf-f.on{border-style:solid;border-color:#34d399;color:#34d399}.vf-no{margin:0;color:#fca5a5;font-size:14px}
+.vf-b{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;background:rgba(52,211,153,.16);color:#34d399;font-size:12px;font-weight:800;white-space:nowrap;font-style:normal}
+.hc-vf{margin:4px 0 0;text-align:center}
+.vf-ph{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.vf-ph a{display:grid;gap:2px;text-align:center;color:inherit;text-decoration:none}
+.vf-ph img{width:140px;height:140px;object-fit:cover;border-radius:12px;background:#111}.vf-plate{font-family:monospace;font-size:16px;letter-spacing:1px}

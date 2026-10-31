@@ -40,6 +40,21 @@ create table if not exists public.vz_cards (
 );
 create index if not exists vz_cards_catalog on public.vz_cards (is_paid desc, updated_at desc) where is_published and not is_blocked;
 create index if not exists vz_cards_created on public.vz_cards (created_at);
+-- v13: значок «Проверен». На визитке остаются только дата проверки и (при отказе) причина.
+alter table public.vz_cards add column if not exists verified_at timestamptz;
+alter table public.vz_cards add column if not exists verify_note text not null default '' check (char_length(verify_note) <= 200);
+-- Заявка на проверку: госномер и пути к фото (авто + селфи) в ЗАКРЫТОМ bucket vz_verify.
+-- Пишет/читает только edge-функция vz-verify (service_role). После решения админа заявка и фото удаляются;
+-- нерассмотренные — через 30 дней (vz_retention; файлы без заявки удаляет vz-verify при открытии списка админом).
+create table if not exists public.vz_verify_req (
+  card_id     uuid primary key references public.vz_cards(id) on delete cascade,
+  plate       text not null check (plate ~ '^[A-Z0-9]{4,10}$'),
+  car_path    text not null,
+  selfie_path text not null,
+  created_at  timestamptz not null default now()
+);
+alter table public.vz_verify_req enable row level security;
+revoke all on public.vz_verify_req from anon, authenticated;
 
 create table if not exists public.vz_events (
   id      bigserial primary key,
@@ -242,6 +257,7 @@ $$;
 create or replace function vz_private.vz_pub(c public.vz_cards) returns jsonb
 language sql stable set search_path = '' as $$
   select jsonb_build_object('slug', c.slug, 'd', c.data, 'photo', c.photo_path,
+    'verified', c.verified_at is not null,
     'pro', coalesce(c.pro_until > now(), false), 'paid', c.is_paid, 'updated_at', c.updated_at,
     'lifetime', coalesce(c.pro_until > now() + interval '50 years', false),
     'status', vz_private.vz_status(c),
@@ -252,7 +268,9 @@ create or replace function vz_private.vz_priv(c public.vz_cards) returns jsonb
 language sql stable set search_path = '' as $$
   select vz_private.vz_pub(c) || jsonb_build_object('pro_until', c.pro_until, 'is_published', c.is_published, 'is_blocked', c.is_blocked,
     'ref_code', c.ref_code, 'ref_count', (select count(*) from public.vz_ref_log r where r.referrer = c.id),
-    'pay_pending', exists (select 1 from public.vz_pay_requests q where q.card_id = c.id and q.status = 'new'));
+    'pay_pending', exists (select 1 from public.vz_pay_requests q where q.card_id = c.id and q.status = 'new'),
+    'verified_at', c.verified_at, 'verify_note', c.verify_note,
+    'verify_pending', exists (select 1 from public.vz_verify_req v where v.card_id = c.id));
 $$;
 
 create or replace function vz_private.vz_is_admin(p_admin text) returns boolean
@@ -421,7 +439,7 @@ create or replace function vz_private.vz_admin_row(c public.vz_cards) returns js
 language sql stable set search_path = '' as $$
   select jsonb_build_object('id', c.id, 'slug', c.slug, 'n', c.data->>'n', 'p', c.phone, 'c', c.data->>'c', 'tg', c.data->>'tg',
     'city', c.city, 'pro_until', c.pro_until, 'is_paid', c.is_paid, 'is_published', c.is_published,
-    'is_blocked', c.is_blocked, 'created_at', c.created_at, 'photo', c.photo_path,
+    'is_blocked', c.is_blocked, 'created_at', c.created_at, 'photo', c.photo_path, 'verified_at', c.verified_at,
     'refs', (select count(*) from public.vz_ref_log r where r.referrer = c.id),
     'lifetime', coalesce(c.pro_until > now() + interval '50 years', false),
     'views30', (select count(*) from public.vz_events e where e.card_id = c.id and e.kind = 'view' and e.day > current_date - 30));
@@ -555,7 +573,7 @@ begin
   if coalesce(vz_private.vz_hash(p_token), '-') is distinct from (select value from public.vz_settings where key = 'og_token_hash') then
     raise exception 'Нет прав' using errcode = '42501';
   end if;
-  return (select coalesce(jsonb_agg(jsonb_build_object('slug', c.slug, 'n', c.data->>'n', 'c', c.data->>'c', 'w', c.data->>'w',
+  return (select coalesce(jsonb_agg(jsonb_build_object('slug', c.slug, 'n', c.data->>'n', 'c', c.data->>'c', 'w', c.data->>'w', 'v', c.verified_at is not null,
       't', c.data->>'t', 'pr', c.data->>'pr', 'pu', c.data->>'pu', 'veh', c.veh, 'p', c.phone,
       'photo', case when c.pro_until > now() then c.photo_og end) order by c.slug), '[]'::jsonb)
     from public.vz_cards c where c.slug is not null and not c.is_blocked);
@@ -852,7 +870,7 @@ language sql stable security definer set search_path = '' as $$
       'taken', (select c.slug from public.vz_cards c where c.id = o.taken_card),
       'review_issued', o.review_issued,
       'targets', (select coalesce(jsonb_agg(c.data->>'n'), '[]') from public.vz_order_targets t join public.vz_cards c on c.id = t.card_id where t.order_id = o.id),
-      'responses', (select coalesce(jsonb_agg(jsonb_build_object('slug', c.slug, 'n', c.data->>'n', 'c', c.data->>'c', 'w', c.data->>'w', 'p', c.data->>'p',
+      'responses', (select coalesce(jsonb_agg(jsonb_build_object('slug', c.slug, 'n', c.data->>'n', 'c', c.data->>'c', 'w', c.data->>'w', 'p', c.data->>'p', 'v', c.verified_at is not null,
           'photo', case when c.pro_until > now() then c.photo_path end, 'price', r.price, 'comment', r.comment, 'at', r.created_at,
           'rating', (vz_private.vz_pub(c))->'rating') order by r.created_at), '[]')
         from public.vz_order_responses r join public.vz_cards c on c.id = r.card_id where r.order_id = o.id and not c.is_blocked)) j
@@ -1110,6 +1128,12 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('vz_photos', 'vz_photos', true, 262144, array['image/webp', 'image/jpeg'])
 on conflict (id) do update set public = excluded.public, file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
+-- v13: ЗАКРЫТЫЙ bucket для фото проверки (авто + селфи): без публичных ссылок, доступ только service_role
+-- (админ видит фото по подписанной ссылке на 10 минут); файлы удаляются после решения.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('vz_verify', 'vz_verify', false, 409600, array['image/jpeg'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 -- ---------- админ (заполнить вручную) ----------
 -- Ключ админа — случайная строка 43 символа (A-Z a-z 0-9 _ -). В базе хранится только её SHA-256:
@@ -1144,7 +1168,7 @@ grant execute on function public.vz_share(text, text, text, text), vz_private.vz
 -- Запуск: pg_cron ежедневно в 22:00 UTC = 03:00 Алматы (задача vz-retention).
 create or replace function vz_private.vz_retention() returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare a int; o int; r int;
+declare a int; o int; r int; v int;
 begin
   update public.vz_orders
      set name = '', phone = '70000000000', note = '', ip_hash = '', calc = calc - 'a' - 'b'
@@ -1155,7 +1179,9 @@ begin
   get diagnostics o = row_count;
   update public.vz_reviews set ip_hash = '' where ip_hash <> '' and created_at < now() - interval '30 days';
   get diagnostics r = row_count;
-  return jsonb_build_object('at', now(), 'orders_anonymized', a, 'orders_deleted', o, 'reviews_ip_cleared', r);
+  delete from public.vz_verify_req where created_at < now() - interval '30 days';
+  get diagnostics v = row_count;
+  return jsonb_build_object('at', now(), 'orders_anonymized', a, 'orders_deleted', o, 'reviews_ip_cleared', r, 'verify_expired', v);
 end $$;
 revoke all on function vz_private.vz_retention() from public, anon, authenticated;
 

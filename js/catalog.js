@@ -17,7 +17,7 @@
       '<a class="cat-top" href="' + V.esc(url) + '">' +
       '<span class="cat-img"><img src="' + V.vehicleImg(d) + '" alt="" loading="lazy" decoding="async" width="520" height="319">' +
       '<i class="cat-av">' + (img ? '<img src="' + V.esc(img) + '" alt="" loading="lazy" onerror="this.remove()">' : '') + '<b>' + V.esc(V.initials(d.n)) + '</b></i></span>' +
-      '<span class="cat-txt"><b class="cat-n">' + V.esc(d.n) + (r.paid ? ' <em class="cat-pro">PRO</em>' : '') + '</b>' +
+      '<span class="cat-txt"><b class="cat-n">' + V.esc(d.n) + (r.paid ? ' <em class="cat-pro">PRO</em>' : '') + (r.verified ? ' <em class="vf-b">✓ Проверен</em>' : '') + '</b>' +
       '<span class="cat-m">' + V.esc(V.metaLine(d)) + '</span>' + rate +
       (si ? '<span class="cat-st st-' + si.s + '"><i></i>' + V.esc(si.short) + '</span>' : '') +
       (open != null ? '<span class="cat-o ' + (open ? 'on' : '') + '">' + (open ? 'Сейчас работает' : 'Сейчас не работает') + ' · ' + V.esc(V.hoursText(d)) + '</span>' : '') +

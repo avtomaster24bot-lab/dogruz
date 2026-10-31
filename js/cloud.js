@@ -68,6 +68,37 @@
         });
       }, function (e) { throw new Error(human(e && e.message)); });
   }
+  // ---- значок «Проверен» (edge-функция vz-verify, закрытое хранилище) ----
+  function verifyCall(body) {
+    return fetch(BASE + '/functions/v1/vz-verify', { method: 'POST', headers: headers(), body: JSON.stringify(body) })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (j) {
+          if (!r.ok) {
+            var map = { bad_plate: 'Проверьте госномер', bad_image: 'Не удалось прочитать фото — выберите другое', no_card: 'Сначала сохраните визитку в облаке', already: 'Визитка уже проверена', blocked: 'Визитка заблокирована', forbidden: 'Нет прав' };
+            throw new Error(map[j.error] || 'Не удалось отправить (' + (j.error || r.status) + ')');
+          }
+          return j;
+        });
+      }, function (e) { throw new Error(human(e && e.message)); });
+  }
+  // фото с камеры → JPEG до 1280 px (для проверки)
+  function shrinkJpeg(file, max) {
+    max = max || 1280;
+    return new Promise(function (ok, no) {
+      var url = URL.createObjectURL(file), im = new Image();
+      im.onload = function () {
+        var k = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight)), cv = document.createElement('canvas');
+        cv.width = Math.round(im.naturalWidth * k); cv.height = Math.round(im.naturalHeight * k);
+        var g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(im, 0, 0, cv.width, cv.height);
+        URL.revokeObjectURL(url);
+        var q = 0.8, d = cv.toDataURL('image/jpeg', q);
+        while (d.length > 520000 && q > 0.4) { q -= 0.1; d = cv.toDataURL('image/jpeg', q); }
+        ok(d);
+      };
+      im.onerror = function () { URL.revokeObjectURL(url); no(new Error('Не удалось прочитать фото')); };
+      im.src = url;
+    });
+  }
   // JPEG-копия для превью ссылок (WhatsApp/Telegram не везде показывают WebP)
   function toJpeg(dataUrl) {
     return new Promise(function (ok) {
@@ -108,6 +139,6 @@
   function shortUrl(slug) { return siteBase() + slug; }
 
   window.VZC = { enabled: enabled, ready: ready, rpc: rpc, key: key, newKey: newKey, setKey: setKey, forget: forget,
-    uploadPhoto: uploadPhoto, removePhoto: removePhoto, adminPhoto: adminPhoto, photoUrl: photoUrl, device: device, track: track,
+    uploadPhoto: uploadPhoto, removePhoto: removePhoto, verifyCall: verifyCall, shrinkJpeg: shrinkJpeg, adminPhoto: adminPhoto, photoUrl: photoUrl, device: device, track: track,
     slugCheck: slugCheck, translit: translit, shortUrl: shortUrl, siteBase: siteBase, ls: ls, cfg: CFG };
 })();

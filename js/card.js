@@ -20,7 +20,7 @@
         if (!r || !r.d) return start(null);
         var d = V.clean(r.d);
         if (r.photo) d.i = C.photoUrl(r.photo);
-        start(d, { slug: r.slug, pro: !!r.pro, lifetime: !!r.lifetime, status: r.status, rating: r.rating, photo: r.photo ? C.photoUrl(r.photo) : '' });
+        start(d, { slug: r.slug, pro: !!r.pro, lifetime: !!r.lifetime, verified: !!r.verified, status: r.status, rating: r.rating, photo: r.photo ? C.photoUrl(r.photo) : '' });
       }, function () {
         app.classList.remove('loading');
         var f = fallback();
@@ -45,7 +45,7 @@
   document.title = d.n + (d.c ? ' · ' + d.c : '') + ' — грузоперевозки | ВЕЗУ';
   var hero = document.getElementById('hero'), det = document.getElementById('details');
   var F = window.VEZU_FAV, own = !!(cloud.slug && C && C.key() && C.ls('vezu-cloud-slug') === cloud.slug);
-  function heroOpts() { return { badge: cloud.lifetime ? '★ Про · бессрочно' : cloud.pro ? 'PRO' : '', status: cloud.status, rating: cloud.rating }; }
+  function heroOpts() { return { verified: cloud.verified, badge: cloud.lifetime ? '★ Про · бессрочно' : cloud.pro ? 'PRO' : '', status: cloud.status, rating: cloud.rating }; }
   function heroHtml() {
     return V.cardHero(d, false, heroOpts()) + (cloud.slug && !cloud.cached ? '<div class="hc-acts">' + (F ? F.btnHtml(cloud.slug) : '') +
       (own ? '<button type="button" class="btn btn-glass btn-sm st-own" id="mystatus"><svg><use href="#i-feed"/></svg>Статус</button>' : '') + '</div>' : '');

@@ -464,7 +464,7 @@
       '<span class="hc-tag">' + esc(t('tag')) + '</span>' + (opts.badge ? '<span class="hc-pro">' + esc(opts.badge) + '</span>' : '') + (d.x ? '<span class="hc-demo">' + esc(t('demo')) + '</span>' : '') +
       '<div class="av"><span>' + esc(initials(name)) + '</span>' +
       (ph ? '<img src="' + esc(ph) + '" alt="" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '</div></div>' +
-      '<h1 class="hc-name">' + esc(name) + '</h1>' + rating +
+      '<h1 class="hc-name">' + esc(name) + '</h1>' + (opts.verified ? '<p class="hc-vf"><span class="vf-b" title="Администратор сверил фото машины, госномер и селфи">✓ Проверен</span></p>' : '') + rating +
       (meta ? '<p class="hc-meta">' + esc(meta) + '</p>' : '') +
       (pills ? '<div class="pills">' + pills + '</div>' : '') +
       '</div>';

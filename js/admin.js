@@ -62,7 +62,7 @@
   function main() {
     app.innerHTML = '<div class="adm-head"><h1>Водители ВЕЗУ Про</h1><button class="lnk" id="out" type="button">Выйти</button></div>' +
       '<div class="adm-stats" id="st"></div>' +
-      '<section class="adm-sec" id="reqs"></section><section class="adm-sec" id="exp"></section>' +
+      '<section class="adm-sec" id="vfy"></section><section class="adm-sec" id="reqs"></section><section class="adm-sec" id="exp"></section>' +
       '<section class="adm-sec" id="revs"></section><section class="adm-sec" id="ords"></section>' +
       '<h3>Все водители</h3>' +
       '<input class="inp" id="q" placeholder="Имя, телефон, адрес (slug), город или @telegram" autocomplete="off">' +
@@ -73,7 +73,32 @@
     ['rows', 'reqs', 'exp'].forEach(function (id) { document.getElementById(id).addEventListener('click', act); });
     document.getElementById('revs').addEventListener('click', revAct);
     document.getElementById('ords').addEventListener('click', ordAct);
-    stats(); find(); lists(); reviews(); orders();
+    document.getElementById('vfy').addEventListener('click', vfyAct);
+    stats(); find(); lists(); reviews(); orders(); verifs();
+  }
+  // ---------- значок «Проверен»: заявки (фото — по ссылкам на 10 минут из закрытого хранилища) ----------
+  function verifs() {
+    C.verifyCall({ admin: akey, list: true }).then(function (j) {
+      var l = j.items || [];
+      document.getElementById('vfy').innerHTML = l.length ? '<h3>Проверка водителей: ' + l.length + '</h3>' + l.map(function (r) {
+        return '<article class="adm-row glass vf-adm" data-card="' + esc(r.card) + '"><div class="adm-main"><b>' + esc(r.n) + '</b> <span class="muted">+' + esc(r.p) + '</span>' +
+          (r.slug ? ' · <a href="' + esc(C.shortUrl(r.slug)) + '" target="_blank">/' + esc(r.slug) + '</a>' : '') + '<br><span class="muted">' + esc([r.car, r.city].filter(Boolean).join(' · ')) + ' · ' + ago(r.at) + '</span>' +
+          '<br>Госномер: <b class="vf-plate">' + esc(r.plate) + '</b>' +
+          '<div class="vf-ph">' + [['car_url', 'Машина'], ['selfie_url', 'Селфи']].map(function (x) { return r[x[0]] ? '<a href="' + esc(r[x[0]]) + '" target="_blank" rel="noopener"><img src="' + esc(r[x[0]]) + '" alt="' + x[1] + '" loading="lazy"><small>' + x[1] + '</small></a>' : '<span class="muted">' + x[1] + ': нет файла</span>'; }).join('') +
+          (r.photo ? '<a href="' + esc(C.photoUrl(r.photo)) + '" target="_blank" rel="noopener"><img src="' + esc(C.photoUrl(r.photo)) + '" alt="Фото визитки" loading="lazy"><small>На визитке</small></a>' : '') + '</div>' +
+          '<p class="fine">Сверьте: номер на фото = указанный, лицо на селфи = фото визитки (если есть), машина = тип на визитке. После решения фото и номер удаляются.</p></div>' +
+          '<div class="adm-act"><button class="btn btn-grad btn-sm" data-vok="1">Одобрить</button><button class="btn btn-glass btn-sm" data-vno="1">Отклонить</button></div></article>';
+      }).join('') : '';
+    }, function (er) { document.getElementById('vfy').innerHTML = '<p class="err-msg">Заявки на проверку не загрузились: ' + esc(er.message) + '</p>'; });
+  }
+  function vfyAct(e) {
+    var b = e.target.closest('button'); if (!b) return;
+    var card = b.closest('[data-card]').dataset.card, note = '';
+    if (b.dataset.vno) { note = prompt('Причина отказа (увидит водитель):', 'Номер на фото не читается'); if (note === null) return; }
+    b.disabled = true;
+    C.verifyCall({ admin: akey, card: card, decide: b.dataset.vok ? 'ok' : 'no', note: note }).then(function () {
+      V.toast(b.dataset.vok ? 'Водитель проверен ✓' : 'Отклонено'); verifs(); find();
+    }, function (er) { b.disabled = false; V.toast(er.message); });
   }
   // ---------- отзывы: модерация и жалобы ----------
   var RST = { pub: 'опубликован', pending: 'ждёт проверки', hidden: 'скрыт' };
@@ -134,12 +159,13 @@
       '<span class="muted">' + esc([r.c, r.city].filter(Boolean).join(' · ')) + '</span><br>' +
       (r.slug ? '<a href="' + esc(C.shortUrl(r.slug)) + '" target="_blank">/' + esc(r.slug) + '</a>' : '<span class="muted">без адреса</span>') +
       ' · <span class="pro-st ' + (pro ? 'ok' : 'off') + '">' + (r.lifetime ? '★ Про бессрочно' : pro ? 'Про до ' + dt(r.pro_until) + (r.is_paid ? '' : ' (пробный)') : 'без Про') + '</span>' +
-      ' · просмотров за 30 дн.: ' + (r.views30 || 0) + (r.refs ? ' · пригласил: ' + r.refs : '') + (r.is_blocked ? ' · <b class="err-msg">скрыта</b>' : '') + (r.is_published ? '' : ' · не в каталоге') +
+      ' · просмотров за 30 дн.: ' + (r.views30 || 0) + (r.refs ? ' · пригласил: ' + r.refs : '') + (r.is_blocked ? ' · <b class="err-msg">скрыта</b>' : '') + (r.is_published ? '' : ' · не в каталоге') + (r.verified_at ? ' · <b class="vf-b">✓ Проверен ' + dt(r.verified_at) + '</b>' : '') +
       ' · создана ' + dt(r.created_at) + '</div>' +
       '<div class="adm-act"><button class="btn btn-grad btn-sm" data-m="1">+1 мес</button><button class="btn btn-glass btn-sm" data-m="3">+3 мес</button>' +
       '<button class="btn btn-glass btn-sm" data-m="12">+12 мес</button><button class="lnk" data-m="0">Отключить Про</button>' +
       '<button class="lnk" data-block="' + (r.is_blocked ? 0 : 1) + '">' + (r.is_blocked ? 'Показать' : 'Скрыть') + '</button>' +
       '<button class="btn btn-glass btn-sm" data-cab="' + esc(r.slug || '') + '">Открыть кабинет на этом устройстве</button>' +
+      (r.verified_at ? '<button class="lnk" data-unvf="1">Снять «Проверен»</button>' : '') +
       '<button class="lnk" data-log="1">История</button><button class="lnk" data-del="1">Удалить</button></div></article>';
   }
   function ago(s) { var m = Math.round((Date.now() - new Date(s)) / 60000); return m < 60 ? m + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : dt(s); }
@@ -176,6 +202,10 @@
   function act(e) {
     var b = e.target.closest('button'); if (!b) return;
     var id = b.closest('[data-id]').dataset.id, note = document.getElementById('note').value;
+    if (b.dataset.unvf) {
+      if (!confirm('Снять значок «Проверен»?')) return;
+      return C.verifyCall({ admin: akey, card: id, revoke: true }).then(function () { V.toast('Значок снят'); find(); }, function (er) { V.toast(er.message); });
+    }
     if (b.dataset.m !== undefined) {
       var m = +b.dataset.m;
       if (m === 0 && !confirm('Отключить Про сейчас?')) return;
