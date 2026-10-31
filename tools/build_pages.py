@@ -66,6 +66,7 @@ QCHIPS='''    <div class="qchips" aria-label="Что везём">
 BNAV='''<nav class="bnav" aria-label="Приложение ВЕЗУ">
   <a href="{p}#order"><svg><use href="#i-box"/></svg><span>Заказ</span></a>
   <a href="{p}#favs"><svg><use href="#i-fav"/></svg><span>Мои водители</span></a>
+  <button type="button" class="bn-share" data-share="app" aria-label="Поделиться VEZU с друзьями"><i><svg><use href="#i-share"/></svg></i><span>Поделиться</span></button>
   <a href="{p}#orders"><svg><use href="#i-list"/></svg><span>Мои заказы</span><em hidden>0</em></a>
   <a href="{p}#feed" class="drv"><svg><use href="#i-feed"/></svg><span>Лента</span><em hidden>0</em></a>
 </nav>
@@ -95,6 +96,7 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
       <span class="badge"><i></i>Казахстан · грузы до 3 тонн</span>
       <h1 class="h1">Перевезём <span class="grad-text">что угодно</span> по лучшей цене</h1>
       <div class="btns cta"><a class="btn btn-grad btn-lg" href="app.html#order"><svg><use href="#i-box"/></svg>Заказать</a><a class="btn btn-glass" href="app.html#orders">Мои заказы</a></div>
+      <button type="button" class="btn btn-share btn-lg hero-share" data-share="home" data-nofab><svg><use href="#i-share"/></svg>Поделиться VEZU</button>
     </div>
   </section>
 
@@ -110,8 +112,9 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
         <h2>Заказ <b>2 касания</b></h2>
         <button type="button" class="info-btn" data-info="geo" aria-label="Что такое «Где я»"><svg><use href="#i-info"/></svg>Где я?</button>
       </div>
-{QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём? Например: диван и 10 коробок')}      <button class="btn btn-wa btn-lg btn-block" type="submit"><svg><use href="#i-wa"/></svg>Отправить в WhatsApp</button>
+{QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём? Например: диван и 10 коробок')}      <button class="btn btn-wa btn-lg btn-block" type="submit" data-nofab><svg><use href="#i-wa"/></svg>Отправить в WhatsApp</button>
       <p class="hint">Откроется WhatsApp с готовым сообщением. Цену можно не указывать. Хотите, чтобы водители сами предложили цену? <a href="app.html#order">Заказ в ленту водителей →</a></p>
+      <button type="button" class="share-band" data-share="home"><span><b>Знаете, кому нужна машина?</b>Отправьте VEZU другу — пригодится при переезде</span><em><svg><use href="#i-share"/></svg>Поделиться</em></button>
     </form>
 
     <div class="svc4" aria-label="Что возим">
@@ -138,7 +141,8 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
   </section>
 </main>
 {FOOT}
-{BN()}{SCRIPTS('js/common.js','js/calc.js')}<script>
+<button type="button" class="share-fab" id="sharefab" data-share="home" aria-label="Поделиться VEZU"><svg><use href="#i-share"/></svg><span>Поделиться</span></button>
+{BN()}{SCRIPTS('js/common.js','js/calc.js','js/config.js','js/share.js')}<script>
 (function () {{
   var V = window.VEZU, form = document.getElementById('order');
   V.bindOrderForm(form, function () {{ return V.SITE_PHONE; }});
@@ -176,6 +180,7 @@ card=head('Визитка водителя — ВЕЗУ','Грузоперево
     <a class="btn btn-wa btn-xl" id="wa" href="#" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg><span data-i18n="wa_short">WhatsApp</span></a>
     <a class="btn btn-call btn-xl" id="call" href="#"><svg><use href="#i-phone"/></svg><span data-i18n="call">Позвонить</span></a>
   </div>
+  <button type="button" class="btn btn-share btn-block card-share" id="share2"><svg><use href="#i-share"/></svg><span>Поделиться водителем с друзьями</span></button>
 
   <nav class="iconrow" aria-label="Действия">
     <button type="button" id="vcf"><svg><use href="#i-user"/></svg><span data-i18n="save">В контакты</span></button>
@@ -204,7 +209,7 @@ card=head('Визитка водителя — ВЕЗУ','Грузоперево
   <a class="made" id="made" href="./" data-i18n="made_by">Сделано на ВЕЗУ — сделай свою визитку</a>
 </main>
 
-{BN()}{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/calc.js','js/config.js','js/cloud.js','js/favs.js','js/reviews.js','js/cab.js','js/card.js')}</body>
+{BN()}{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/calc.js','js/config.js','js/cloud.js','js/favs.js','js/reviews.js','js/cab.js','js/share.js','js/card.js')}</body>
 </html>
 '''
 open('card.html','w').write(card)
@@ -460,7 +465,8 @@ cat=head('Водители ВЕЗУ — каталог грузоперевоз�
   <p class="fine">В каталоге — водители с активным ВЕЗУ Про; сначала свободные сейчас, потом те, кто оплатил Про, потом новые. ВЕЗУ не проверяет водителей и не отвечает за перевозку — договаривайтесь напрямую.</p>
 </main>
 {FOOT}
-{BN()}{SCRIPTS('js/common.js','js/config.js','js/cloud.js','js/favs.js','js/catalog.js')}</body>
+<button type="button" class="share-fab" id="sharefab" data-share="catalog" aria-label="Поделиться VEZU"><svg><use href="#i-share"/></svg><span>Поделиться</span></button>
+{BN()}{SCRIPTS('js/common.js','js/config.js','js/cloud.js','js/favs.js','js/share.js','js/catalog.js')}</body>
 </html>
 '''
 open('catalog.html','w').write(cat)
@@ -475,6 +481,7 @@ app=head('Заказ перевозки — ВЕЗУ','Опишите груз �
 <main class="wrap narrow app" id="app">
   <section data-tab="order">
     <h1>Новый <span class="grad-text">заказ</span></h1>
+    <button type="button" class="share-band" data-share="app"><span><b>Знаете, кому нужна машина?</b>Отправьте VEZU другу — пригодится при переезде</span><em><svg><use href="#i-share"/></svg>Поделиться</em></button>
     <form class="panel glass f" id="nord" novalidate>
 {QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём? Например: диван и 10 коробок')}      <label class="fld"><span>Точная дата и время (необязательно)</span><input class="inp" name="at" type="datetime-local"></label>
       <label class="fld"><span>Комментарий</span><input class="inp" name="note" maxlength="300" placeholder="Подъезд со двора, нужен домофон…"></label>
@@ -499,6 +506,7 @@ app=head('Заказ перевозки — ВЕЗУ','Опишите груз �
   </section>
   <section data-tab="orders" hidden>
     <h1>Мои <span class="grad-text">заказы</span></h1>
+    <button type="button" class="share-band" data-share="app"><span><b>Понравилось?</b>Расскажите друзьям — им тоже пригодится</span><em><svg><use href="#i-share"/></svg>Поделиться</em></button>
     <div id="ordl" class="ord-list" aria-live="polite"></div>
   </section>
   <section data-tab="feed" hidden>
@@ -508,7 +516,7 @@ app=head('Заказ перевозки — ВЕЗУ','Опишите груз �
   </section>
 </main>
 {BN('')}<p class="wrap narrow fine legal-foot"><a href="privacy.html">Политика конфиденциальности</a></p>
-{SCRIPTS('js/common.js','js/calc.js','js/config.js','js/cloud.js','js/favs.js','js/cab.js','js/app.js')}</body>
+{SCRIPTS('js/common.js','js/calc.js','js/config.js','js/cloud.js','js/favs.js','js/cab.js','js/share.js','js/app.js')}</body>
 </html>
 '''
 open('app.html','w').write(app)
@@ -522,7 +530,7 @@ priv=head('Политика конфиденциальности — ВЕЗУ','
 </header>
 '''+open('tools/privacy_body.html').read()+f'''
 {FOOT}
-{SCRIPTS('js/common.js')}<script>
+{SCRIPTS('js/common.js','js/config.js','js/share.js')}<script>
 (function () {{
   var V = window.VEZU, k = 'Удалить мои данные';
   document.getElementById('pdk').addEventListener('click', function (e) {{

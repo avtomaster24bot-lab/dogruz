@@ -25,7 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="VEZU">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css?v=6b511798">
+<link rel="stylesheet" href="css/style.css?v=b2f73f1c">
 <link rel="preload" as="image" href="img/hero-van-720.webp" imagesrcset="img/hero-van-720.webp 720w, img/hero-van-1280.webp 1280w" imagesizes="(min-width:880px) 1120px, 100vw">
 </head>
 <body>
@@ -79,6 +79,7 @@
       <span class="badge"><i></i>Казахстан · грузы до 3 тонн</span>
       <h1 class="h1">Перевезём <span class="grad-text">что угодно</span> по лучшей цене</h1>
       <div class="btns cta"><a class="btn btn-grad btn-lg" href="app.html#order"><svg><use href="#i-box"/></svg>Заказать</a><a class="btn btn-glass" href="app.html#orders">Мои заказы</a></div>
+      <button type="button" class="btn btn-share btn-lg hero-share" data-share="home" data-nofab><svg><use href="#i-share"/></svg>Поделиться VEZU</button>
     </div>
   </section>
 
@@ -112,8 +113,9 @@
       </label>
       <label class="fld"><span class="sr" data-i18n="price">Ваша цена</span><input class="inp" name="price" inputmode="numeric" placeholder="Ваша цена" data-i18n-ph="price"><b class="suffix">₸</b></label>
     </div>
-      <button class="btn btn-wa btn-lg btn-block" type="submit"><svg><use href="#i-wa"/></svg>Отправить в WhatsApp</button>
+      <button class="btn btn-wa btn-lg btn-block" type="submit" data-nofab><svg><use href="#i-wa"/></svg>Отправить в WhatsApp</button>
       <p class="hint">Откроется WhatsApp с готовым сообщением. Цену можно не указывать. Хотите, чтобы водители сами предложили цену? <a href="app.html#order">Заказ в ленту водителей →</a></p>
+      <button type="button" class="share-band" data-share="home"><span><b>Знаете, кому нужна машина?</b>Отправьте VEZU другу — пригодится при переезде</span><em><svg><use href="#i-share"/></svg>Поделиться</em></button>
     </form>
 
     <div class="svc4" aria-label="Что возим">
@@ -146,15 +148,19 @@
   </div>
 </footer>
 
+<button type="button" class="share-fab" id="sharefab" data-share="home" aria-label="Поделиться VEZU"><svg><use href="#i-share"/></svg><span>Поделиться</span></button>
 <nav class="bnav" aria-label="Приложение ВЕЗУ">
   <a href="app.html#order"><svg><use href="#i-box"/></svg><span>Заказ</span></a>
   <a href="app.html#favs"><svg><use href="#i-fav"/></svg><span>Мои водители</span></a>
+  <button type="button" class="bn-share" data-share="app" aria-label="Поделиться VEZU с друзьями"><i><svg><use href="#i-share"/></svg></i><span>Поделиться</span></button>
   <a href="app.html#orders"><svg><use href="#i-list"/></svg><span>Мои заказы</span><em hidden>0</em></a>
   <a href="app.html#feed" class="drv"><svg><use href="#i-feed"/></svg><span>Лента</span><em hidden>0</em></a>
 </nav>
 <script>try{if(localStorage.getItem('vezu-key'))document.body.classList.add('is-driver')}catch(e){}</script>
 <script src="js/common.js?v=a1d26d24"></script>
 <script src="js/calc.js?v=333e7752"></script>
+<script src="js/config.js?v=566bab7b"></script>
+<script src="js/share.js?v=0119f5f9"></script>
 <script>
 (function () {
   var V = window.VEZU, form = document.getElementById('order');

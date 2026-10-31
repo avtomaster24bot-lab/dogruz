@@ -640,3 +640,35 @@ body:has(.app){padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 .todo{display:inline-block;min-width:2em;padding:0 8px;border-radius:8px;border:1px dashed rgba(255,215,106,.55);color:#ffd76a;background:rgba(255,215,106,.07)}
 .mydata{padding:18px;border-radius:22px;display:grid;gap:12px;margin-top:24px}.mydata h2{margin:0}
 .legal-lnk{display:block;text-align:center;margin:6px auto 0;font-size:13px}.legal-foot{text-align:center;margin-top:10px}.legal-foot a{color:var(--muted)}
+/* ---------- «Поделиться VEZU» ---------- */
+:root{--sh-grad:linear-gradient(115deg,#ff4fd8 0%,#ff8f70 55%,#ffd76a 100%)}
+@keyframes shGlow{0%,100%{box-shadow:0 8px 26px -8px rgba(255,79,216,.55),0 0 0 0 rgba(255,143,112,.0)}50%{box-shadow:0 10px 34px -6px rgba(255,79,216,.8),0 0 0 6px rgba(255,143,112,.14)}}
+@keyframes shShine{0%{transform:translateX(-120%) skewX(-20deg)}60%,100%{transform:translateX(260%) skewX(-20deg)}}
+.btn-share{position:relative;overflow:hidden;background:var(--sh-grad);color:#1a0820;font-weight:800;animation:shGlow 2.8s ease-in-out infinite}
+.btn-share::after{content:"";position:absolute;inset:0 auto 0 0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);animation:shShine 4.5s ease-in-out infinite;pointer-events:none}
+.btn-share svg{width:22px;height:22px}
+.hero-share{margin-top:12px;width:100%;max-width:420px}
+.card-share{margin:12px 0 4px;min-height:56px;font-size:16.5px}
+.share-band{display:flex;align-items:center;gap:12px;width:100%;margin:6px 0 14px;padding:12px 12px 12px 16px;border-radius:20px;border:1px solid rgba(255,143,112,.45);background:linear-gradient(115deg,rgba(255,79,216,.16),rgba(255,143,112,.12) 55%,rgba(255,215,106,.12));color:var(--ink);text-align:left;cursor:pointer;font:inherit;-webkit-tap-highlight-color:transparent}
+.share-band>span{flex:1;display:grid;gap:2px;font-size:13px;color:var(--muted);line-height:1.35}.share-band b{color:var(--ink);font-size:15px}
+.share-band em{flex:none;display:inline-flex;align-items:center;gap:6px;min-height:46px;padding:0 16px;border-radius:999px;background:var(--sh-grad);color:#1a0820;font-style:normal;font-weight:800;font-size:14.5px;animation:shGlow 2.8s ease-in-out infinite}
+.share-band em svg{width:18px;height:18px}
+form .share-band{margin:12px 0 0}
+.share-fab{position:fixed;right:14px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:39;display:inline-flex;align-items:center;gap:8px;height:56px;padding:0 20px 0 16px;border-radius:999px;border:0;background:var(--sh-grad);color:#1a0820;font:800 15px/1 var(--font);cursor:pointer;animation:shGlow 2.8s ease-in-out infinite;transition:transform .25s ease,opacity .25s ease}
+.share-fab svg{width:22px;height:22px}.share-fab.away{transform:translateY(90px);opacity:0;pointer-events:none}
+@media (display-mode:standalone){.share-fab{display:none}}
+body:has(.app) .share-fab{display:none}
+.bnav .bn-share{position:relative;display:grid;justify-items:center;gap:2px;padding:0 2px 6px;border:0;background:none;color:var(--ink);font:700 11.5px/1.2 var(--font);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.bnav .bn-share i{display:grid;place-items:center;width:52px;height:52px;margin-top:-22px;border-radius:50%;background:var(--sh-grad);color:#1a0820;border:4px solid #0b0a24;animation:shGlow 2.8s ease-in-out infinite}
+.bnav .bn-share i svg{width:24px;height:24px}
+.sheet-share .sh-sub{margin:-4px 0 12px}
+.sheet-share .sh-main{background:var(--sh-grad);color:#1a0820;font-weight:800;min-height:56px;margin-bottom:12px}
+.sh-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sh-grid button{display:grid;justify-items:center;gap:6px;padding:12px 4px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ink);font:700 12.5px/1.2 var(--font);cursor:pointer;min-height:76px}
+.sh-grid svg{width:28px;height:28px}.sh-grid .sh-wa svg{color:var(--wa)}.sh-grid .sh-tg svg{color:#2aabee}
+.sh-qr{margin-top:14px;text-align:center}.sh-qr .qr{margin:0 auto;max-width:260px;background:#fff;border-radius:18px;padding:12px}
+.sh-msg{margin-top:14px;padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.04);border:1px dashed var(--line)}.sh-msg p{margin:4px 0 0;font-size:14px;line-height:1.45}
+.sheet-done .done-ic{width:64px;height:64px;margin:4px auto 8px;border-radius:50%;display:grid;place-items:center;background:rgba(37,211,102,.16);color:var(--wa)}.sheet-done .done-ic svg{width:34px;height:34px}
+.sheet-done .done-t{text-align:center;color:var(--muted);margin:0 0 14px}
+.done-share{display:grid;gap:8px;padding:16px;border-radius:22px;margin-bottom:12px;border:1px solid rgba(255,143,112,.45);background:linear-gradient(115deg,rgba(255,79,216,.14),rgba(255,215,106,.10))}.done-share b{font-size:18px}.done-share span{color:var(--muted);font-size:14px;line-height:1.45}
+@media (prefers-reduced-motion:reduce){.btn-share,.btn-share::after,.share-band em,.share-fab,.bnav .bn-share i{animation:none}}

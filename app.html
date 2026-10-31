@@ -25,7 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="VEZU">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css?v=6b511798">
+<link rel="stylesheet" href="css/style.css?v=b2f73f1c">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -73,6 +73,7 @@
 <main class="wrap narrow app" id="app">
   <section data-tab="order">
     <h1>Новый <span class="grad-text">заказ</span></h1>
+    <button type="button" class="share-band" data-share="app"><span><b>Знаете, кому нужна машина?</b>Отправьте VEZU другу — пригодится при переезде</span><em><svg><use href="#i-share"/></svg>Поделиться</em></button>
     <form class="panel glass f" id="nord" novalidate>
     <div class="qchips" aria-label="Что везём">
       <button type="button" class="qchip" data-fill="what" data-v="Переезд" data-i18n="q_move">Переезд</button>
@@ -115,6 +116,7 @@
   </section>
   <section data-tab="orders" hidden>
     <h1>Мои <span class="grad-text">заказы</span></h1>
+    <button type="button" class="share-band" data-share="app"><span><b>Понравилось?</b>Расскажите друзьям — им тоже пригодится</span><em><svg><use href="#i-share"/></svg>Поделиться</em></button>
     <div id="ordl" class="ord-list" aria-live="polite"></div>
   </section>
   <section data-tab="feed" hidden>
@@ -126,6 +128,7 @@
 <nav class="bnav" aria-label="Приложение ВЕЗУ">
   <a href="#order"><svg><use href="#i-box"/></svg><span>Заказ</span></a>
   <a href="#favs"><svg><use href="#i-fav"/></svg><span>Мои водители</span></a>
+  <button type="button" class="bn-share" data-share="app" aria-label="Поделиться VEZU с друзьями"><i><svg><use href="#i-share"/></svg></i><span>Поделиться</span></button>
   <a href="#orders"><svg><use href="#i-list"/></svg><span>Мои заказы</span><em hidden>0</em></a>
   <a href="#feed" class="drv"><svg><use href="#i-feed"/></svg><span>Лента</span><em hidden>0</em></a>
 </nav>
@@ -137,6 +140,7 @@
 <script src="js/cloud.js?v=984bde38"></script>
 <script src="js/favs.js?v=610baa8d"></script>
 <script src="js/cab.js?v=ead54bbf"></script>
-<script src="js/app.js?v=87d69112"></script>
+<script src="js/share.js?v=0119f5f9"></script>
+<script src="js/app.js?v=7b7bf2ff"></script>
 </body>
 </html>

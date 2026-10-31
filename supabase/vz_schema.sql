@@ -53,6 +53,22 @@ create table if not exists public.vz_events (
 create index if not exists vz_events_card_day on public.vz_events (card_id, day);
 create index if not exists vz_events_day on public.vz_events (day);
 
+-- v9: «Поделиться VEZU» — анонимный счётчик (без персональных данных: хеш случайного id устройства).
+create table if not exists public.vz_shares (
+  id      bigserial primary key,
+  day     date not null,
+  src     text not null check (src in ('home', 'app', 'order', 'card', 'catalog', 'other')),
+  ch      text not null check (ch in ('native', 'wa', 'tg', 'copy', 'qr')),
+  dev     text not null,
+  card_id uuid references public.vz_cards(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (dev, day, src, ch)                        -- одно событие каждого вида с устройства в день
+);
+create index if not exists vz_shares_day on public.vz_shares (day);
+alter table public.vz_shares enable row level security;
+revoke all on public.vz_shares from anon, authenticated;
+revoke all on sequence public.vz_shares_id_seq from anon, authenticated;
+
 create table if not exists public.vz_admins (
   key_hash text primary key,
   note     text not null default '',
@@ -475,7 +491,11 @@ begin
     'pro', (select count(*) from public.vz_cards where pro_until > now()),
     'paid', (select count(*) from public.vz_cards where pro_until > now() and is_paid),
     'trial', (select count(*) from public.vz_cards where pro_until > now() and not is_paid),
-    'views7', (select count(*) from public.vz_events where kind = 'view' and day > current_date - 7));
+    'views7', (select count(*) from public.vz_events where kind = 'view' and day > current_date - 7),
+    'shares7', (select count(*) from public.vz_shares where day > current_date - 7),
+    'shares30', (select count(*) from public.vz_shares where day > current_date - 30),
+    'shares_all', (select count(*) from public.vz_shares),
+    'shares_by', (select coalesce(jsonb_object_agg(ch, n), '{}'::jsonb) from (select ch, count(*) n from public.vz_shares where day > current_date - 30 group by ch) x));
 end $$;
 
 -- ---------- v6: оплата, списки админа, превью ссылок ----------
@@ -1092,3 +1112,20 @@ on conflict (id) do update set public = excluded.public, file_size_limit = exclu
 -- insert into public.vz_admins (key_hash, note) values (vz_private.vz_hash('<ключ>'), 'владелец') on conflict do nothing;
 -- Токен для GitHub Actions (страницы-превью): секрет репозитория VZ_OG_TOKEN, в базе — его SHA-256:
 -- insert into public.vz_settings (key, value) values ('og_token_hash', vz_private.vz_hash('<токен>')) on conflict (key) do update set value = excluded.value;
+
+-- ---------- v9: счётчик «Поделиться» ----------
+create or replace function vz_private.vz_share(p_src text, p_ch text, p_device text, p_slug text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare today date := (now() at time zone 'Asia/Almaty')::date; cid uuid;
+begin
+  if p_src not in ('home', 'app', 'order', 'card', 'catalog', 'other') or p_ch not in ('native', 'wa', 'tg', 'copy', 'qr')
+     or coalesce(p_device, '') !~ '^[A-Za-z0-9_-]{8,40}$' then return; end if;
+  if (select count(*) from public.vz_shares where day = today) >= 20000 then return; end if;
+  if p_src = 'card' and coalesce(p_slug, '') <> '' then select id into cid from public.vz_cards where slug = lower(trim(p_slug)); end if;
+  insert into public.vz_shares (day, src, ch, dev, card_id)
+  values (today, p_src, p_ch, md5('vz-share:' || p_device), cid) on conflict do nothing;
+end $$;
+create or replace function public.vz_share(p_src text, p_ch text, p_device text, p_slug text default null) returns void
+language sql security invoker set search_path = '' as $$ select vz_private.vz_share(p_src, p_ch, p_device, p_slug) $$;
+revoke all on function vz_private.vz_share(text, text, text, text), public.vz_share(text, text, text, text) from public;
+grant execute on function public.vz_share(text, text, text, text), vz_private.vz_share(text, text, text, text) to anon, authenticated;

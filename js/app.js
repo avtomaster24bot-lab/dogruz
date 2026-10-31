@@ -100,8 +100,16 @@
       ['what', 'from', 'to', 'note', 'price', 'at'].forEach(function (n) { var i = form.querySelector('[name=' + n + ']'); if (i) i.value = ''; });
       var cb = form.querySelector('[data-consent=order]'); cb.checked = false; cb.dispatchEvent(new Event('change'));
       if (form._calcReset) form._calcReset();
-      V.toast('Заказ отправлен! Ответы водителей — в «Мои заказы»', 4000);
       location.hash = '#orders';
+      if (window.VEZU_SHARE) {
+        var ok = V.sheet('Заказ отправлен ✓', '<div class="done-ic"><svg><use href="#i-check"/></svg></div>' +
+          '<p class="done-t">Водители уже видят заказ. Отклики появятся в «Мои заказы» — мы покажем их здесь.</p>' +
+          '<div class="done-share"><b>Расскажите друзьям 🚚</b><span>Кому-то из знакомых тоже скоро переезжать или везти мебель. Одна ссылка — и они найдут водителя за минуту.</span>' +
+          '<button type="button" class="btn btn-share btn-lg btn-block" data-sh-order><svg><use href="#i-share"/></svg>Поделиться VEZU</button></div>' +
+          '<button type="button" class="btn btn-glass btn-block" data-sh-close>Смотреть отклики</button>', 'sheet-done');
+        ok.el.querySelector('[data-sh-order]').addEventListener('click', function () { window.VEZU_SHARE.open({ src: 'order', head: 'Расскажите друзьям', sub: 'Заказ отправлен. Поделитесь VEZU с теми, кому тоже нужна машина.' }); });
+        ok.el.querySelector('[data-sh-close]').addEventListener('click', function () { ok.close(); });
+      } else V.toast('Заказ отправлен! Ответы водителей — в «Мои заказы»', 4000);
     }, function (e) { b.disabled = false; b.innerHTML = '<svg><use href="#i-feed"/></svg>Отправить водителям'; fail(e.message); });
   });
 

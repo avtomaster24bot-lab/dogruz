@@ -201,3 +201,11 @@ select pg_temp.expect_err($$select count(*) from public.vz_consents$$, 'permissi
 reset role;
 select 'consent rows', kind, count(*) from public.vz_consents group by kind order by kind;
 select 'ALL DONE';
+
+-- v9 shares
+select public.vz_share('home', 'wa', 'testdevice123', null);
+select public.vz_share('home', 'wa', 'testdevice123', null);
+select public.vz_share('bad', 'wa', 'testdevice123', null);
+do $$ begin if (select count(*) from public.vz_shares where dev = md5('vz-share:testdevice123')) <> 1 then raise exception 'share count'; end if; end $$;
+delete from public.vz_shares where dev = md5('vz-share:testdevice123');
+select 'SHARES OK';

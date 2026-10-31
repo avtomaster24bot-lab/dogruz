@@ -119,8 +119,11 @@
   }
   function stats() {
     call('vz_admin_stats').then(function (s) {
-      document.getElementById('st').innerHTML = [['Визиток', s.cards], ['Про активен', s.pro], ['Оплачено', s.paid], ['Пробных', s.trial], ['Просмотров за 7 дн.', s.views7]]
+      document.getElementById('st').innerHTML = [['Визиток', s.cards], ['Про активен', s.pro], ['Оплачено', s.paid], ['Пробных', s.trial], ['Просмотров за 7 дн.', s.views7], ['Поделились за 7 дн.', s.shares7 || 0], ['Поделились за 30 дн.', s.shares30 || 0], ['Поделились всего', s.shares_all || 0]]
         .map(function (x) { return '<div><b>' + x[1] + '</b><span>' + x[0] + '</span></div>'; }).join('');
+      var by = s.shares_by || {}, N = { native: 'меню телефона', wa: 'WhatsApp', tg: 'Telegram', copy: 'ссылка', qr: 'QR' };
+      var t = Object.keys(N).filter(function (k) { return by[k]; }).map(function (k) { return N[k] + ' ' + by[k]; }).join(' · ');
+      if (t) document.getElementById('st').insertAdjacentHTML('beforeend', '<p class="fine" style="grid-column:1/-1;margin:0">«Поделиться» за 30 дн.: ' + esc(t) + '</p>');
     }, function () {});
   }
   function row(r) {

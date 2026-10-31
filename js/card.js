@@ -103,9 +103,13 @@
     s.el.querySelector('#qrcopy').addEventListener('click', function () { V.copy(url); });
   }
   document.getElementById('qrbtn').addEventListener('click', showQR);
-  document.getElementById('share').addEventListener('click', function () {
-    V.share(document.title, 'Грузоперевозки: ' + d.n + (d.c ? ' (' + d.c + ')' : '') + '. Пишите в WhatsApp:', url);
-  });
+  function shareDriver() {
+    var txt = 'Советую водителя: ' + d.n + (d.c ? ', ' + d.c : '') + (d.t ? ' (' + d.t + ')' : '') + ' — грузоперевозки до 3 т без посредников. Пишите ему в WhatsApp прямо с визитки 👇';
+    if (window.VEZU_SHARE) window.VEZU_SHARE.open({ src: 'card', url: url, slug: cloud.slug || '', text: txt, title: document.title, head: 'Поделиться водителем', sub: 'Друзьям тоже нужен надёжный водитель — отправьте им эту визитку.' });
+    else V.share(document.title, txt, url);
+  }
+  document.getElementById('share').addEventListener('click', shareDriver);
+  var sh2 = document.getElementById('share2'); if (sh2) sh2.addEventListener('click', shareDriver);
   V.editUrl(d).then(function (u) { document.getElementById('edit').href = u; });
   V.bindInstall(document.getElementById('install'));
   var made = document.getElementById('made');
