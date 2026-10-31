@@ -150,10 +150,10 @@
     var chosen = o.taken === r.slug;
     return '<div class="resp' + (chosen ? ' chosen' : '') + '"><a class="resp-h" href="' + esc(C.shortUrl(r.slug)) + '"><i class="cat-av">' + (r.photo ? '<img src="' + esc(C.photoUrl(r.photo)) + '" alt="" onerror="this.remove()">' : '') + '<b>' + esc(V.initials(r.n)) + '</b></i>' +
       '<span><b>' + esc(r.n) + (r.v ? ' <em class="vf-b">✓ Проверен</em>' : '') + (chosen ? ' · выбран' : '') + '</b><small>' + esc([r.c, r.w].filter(Boolean).join(' · ')) + (V.reviewsOn() && r.rating && r.rating.n ? ' · ★ ' + String(r.rating.avg).replace('.', ',') : '') + '</small></span>' +
-      (r.price ? '<em class="resp-p">' + V.fmtNum(r.price) + ' ₸</em>' : '') + '</a>' +
+      (r.price ? '<em class="resp-p"><small>могу за</small>' + V.fmtNum(r.price) + ' ₸' + (r.best ? '<i class="resp-best">дешевле всех</i>' : '') + '</em>' : '<em class="resp-p resp-np"><small>цена</small>договорная</em>') + '</a>' +
       (r.comment ? '<p class="resp-c">«' + esc(r.comment) + '»</p>' : '') +
       '<div class="resp-b"><a class="btn btn-wa btn-sm" href="#" data-wa="' + esc(r.p) + '" data-n="' + esc(r.n) + '"><svg><use href="#i-wa"/></svg>WhatsApp</a><a class="btn btn-glass btn-sm" href="tel:+' + esc(r.p) + '"><svg><use href="#i-phone"/></svg>Звонок</a>' +
-      (o.state === 'open' ? '<button type="button" class="btn btn-grad btn-sm" data-pick="' + esc(r.slug) + '" data-o="' + o.id + '">Выбрать</button>' : '') + '</div></div>';
+      (o.state === 'open' ? '<button type="button" class="btn btn-grad btn-sm" data-pick="' + esc(r.slug) + '" data-o="' + o.id + '">Выбрать' + (r.price ? ' за ' + V.fmtNum(r.price) + ' ₸' : '') + '</button>' : '') + '</div></div>';
   }
   var lastOrders = null;
   function loadOrders(quiet) {
@@ -162,6 +162,13 @@
     if (!C.ls('vezu-otok')) { lastOrders = []; return drawOrders(); }
     C.rpc('vz_my_orders', { p_dev: dev() }).then(function (a) { lastOrders = a || []; drawOrders(); seenOrders(); }, function (e) { if (!quiet) box.innerHTML = '<p class="err-msg">' + esc(e.message) + '</p>'; });
   }
+  // предложения «Могу за X ₸»: сначала с ценой (дешевле выше), потом без цены
+  function offers(o) {
+    var a = o.responses.slice().sort(function (x, y) { return (x.price || 1e12) - (y.price || 1e12); });
+    var priced = a.filter(function (r) { return r.price; });
+    a.forEach(function (r) { r.best = priced.length > 1 && r === priced[0] && r.price < priced[1].price; });
+    return a;
+  }
   function drawOrders() {
     var a = lastOrders || [], box = $('#ordl');
     box.innerHTML = a.length ? a.map(function (o) {
@@ -169,7 +176,7 @@
       return '<article class="ord glass st-o-' + s + '"><div class="ord-h"><span class="ost ost-' + s + '">' + LABEL[s] + (s === 'resp' ? ' · ' + o.responses.length : '') + '</span><span class="muted">' + esc(ago(o.at)) + '</span></div>' +
         '<h3>' + cargoTag(o) + esc(o.what || V.cargoLabel(o.cargo) || 'Перевозка') + '</h3>' + route(o) + facts(o) + (est(o.calc) ? '<p class="o-est">' + est(o.calc) + '</p>' : '') +
         (o.scope === 'picked' ? '<p class="fine">Только для: ' + esc((o.targets || []).join(', ')) + '</p>' : '') +
-        (o.responses.length ? o.responses.map(function (r) { return respHtml(o, r); }).join('') : o.state === 'open' ? '<p class="muted wait">Ждём отклики водителей… Страница обновляется сама.</p>' : '') +
+        (o.responses.length ? (o.state === 'open' && o.responses.length > 1 ? '<p class="fine">Предложения водителей — от дешёвых к дорогим. Выберите одного: заказ закроется для остальных, откроется WhatsApp.</p>' : '') + offers(o).map(function (r) { return respHtml(o, r); }).join('') : o.state === 'open' ? '<p class="muted wait">Ждём отклики водителей… Страница обновляется сама.</p>' : '') +
         (V.reviewsOn() && o.state === 'taken' && !o.review_issued ? '<button type="button" class="btn btn-glass btn-block" data-rev="' + o.id + '"><svg><use href="#i-star"/></svg>Оставить отзыв водителю</button>' : '') +
         (o.state === 'open' || o.state === 'taken' ? '<button type="button" class="lnk" data-cancel="' + o.id + '">Отменить заказ</button>' : '') + '</article>';
     }).join('') : '<div class="empty glass"><h2>Заказов пока нет</h2><p class="muted">Опишите груз — водители ответят здесь со своей ценой.</p><a class="btn btn-grad" href="#order">Новый заказ</a></div>';
@@ -180,7 +187,13 @@
     if (b.dataset.wa) return V.openWA(b.dataset.wa, 'Здравствуйте, ' + b.dataset.n.split(' ')[0] + '! Это по моему заказу в ВЕЗУ.');
     if (b.dataset.pick) {
       if (!confirm('Выбрать этого водителя? Заказ закроется для остальных.')) return;
-      C.rpc('vz_order_pick', { p_dev: dev(), p_id: b.dataset.o, p_slug: b.dataset.pick }).then(function () { V.toast('Готово! Свяжитесь с водителем'); loadOrders(); }, function (er) { V.toast(er.message); });
+      var po = (lastOrders || []).filter(function (x) { return String(x.id) === String(b.dataset.o); })[0],
+        pr = po && po.responses.filter(function (x) { return x.slug === b.dataset.pick; })[0];
+      C.rpc('vz_order_pick', { p_dev: dev(), p_id: b.dataset.o, p_slug: b.dataset.pick }).then(function () {
+        V.toast('Готово! Открываю WhatsApp водителя'); loadOrders();
+        if (pr && pr.p) V.openWA(pr.p, 'Здравствуйте, ' + String(pr.n || '').split(' ')[0] + '! Выбрал(а) вас в ВЕЗУ: ' + (po.what || V.cargoLabel(po.cargo) || 'перевозка') +
+          (po.from ? ', ' + po.from : '') + (po.to ? ' → ' + po.to : '') + (pr.price ? '. Ваша цена: ' + V.fmtNum(pr.price) + ' ₸' : '') + '. Когда сможете?');
+      }, function (er) { V.toast(er.message); });
     } else if (b.dataset.cancel) {
       if (!confirm('Отменить заказ?')) return;
       C.rpc('vz_order_cancel', { p_dev: dev(), p_id: b.dataset.cancel }).then(function () { loadOrders(); }, function (er) { V.toast(er.message); });
@@ -208,9 +221,9 @@
         (o.note ? '<p class="resp-c">' + esc(o.note) + '</p>' : '') +
         (o.phone ? '<p class="fine">Клиент: ' + esc(o.name || 'без имени') + ' · +' + esc(o.phone) + '</p>' : '<p class="fine">' + (o.my ? 'Телефон появится, когда клиент выберет вас. Клиент видит ваш отклик и может написать вам в WhatsApp.' : 'Телефон клиента увидит только водитель, которого клиент выберет.') + '</p>') +
         (ml ? '<a class="lnk" href="' + esc(ml) + '" target="_blank" rel="noopener">Маршрут на карте</a>' : '') +
-        (o.my ? '<p class="my-resp">Ваш отклик: ' + (o.my.price ? V.fmtNum(o.my.price) + ' ₸' : 'без цены') + (o.my.comment ? ' · ' + esc(o.my.comment) : '') + '</p>' : '') +
+        (o.my ? '<p class="my-resp">Ваше предложение: ' + (o.my.price ? 'могу за ' + V.fmtNum(o.my.price) + ' ₸' : 'без цены') + (o.my.comment ? ' · ' + esc(o.my.comment) : '') + '</p>' : '') +
         '<div class="resp-b">' + (o.phone ? '<a class="btn btn-wa btn-sm" href="#" data-wa="' + esc(o.phone) + '" data-id="' + o.id + '"><svg><use href="#i-wa"/></svg>WhatsApp</a><a class="btn btn-glass btn-sm" href="tel:+' + esc(o.phone) + '"><svg><use href="#i-phone"/></svg>Звонок</a>' : '') +
-        (o.status === 'open' ? '<button type="button" class="btn ' + (o.my ? 'btn-glass' : 'btn-grad') + ' btn-sm" data-take="' + o.id + '">' + (o.my ? 'Изменить отклик' : 'Беру') + '</button>' : '') + '</div></article>';
+        (o.status === 'open' ? '<button type="button" class="btn ' + (o.my ? 'btn-glass' : 'btn-grad') + ' btn-sm" data-take="' + o.id + '">' + (o.my ? 'Изменить цену' : 'Могу за … ₸') + '</button>' : '') + '</div></article>';
     }).join('') : '<div class="empty glass"><h2>Пока заказов нет</h2><p class="muted">Новые заказы появятся здесь сами — лента обновляется каждые 20 секунд. Поставьте статус «Свободен», чтобы клиенты видели вас первым.</p></div>';
   }
   $('#feedst').addEventListener('click', function () {});
@@ -220,14 +233,20 @@
     e.preventDefault();
     var o = (lastFeed || []).filter(function (x) { return x.id === (b.dataset.take || b.dataset.id); })[0]; if (!o) return;
     if (b.dataset.wa) return V.openWA(o.phone, 'Здравствуйте' + (o.name ? ', ' + o.name : '') + '! Я водитель с ВЕЗУ, по вашему заказу: ' + (o.what || 'перевозка') + (o.from ? ', ' + o.from : '') + (o.to ? ' → ' + o.to : '') + '.' + (o.my && o.my.price ? ' Цена: ' + V.fmtNum(o.my.price) + ' ₸.' : ''));
-    var s = V.sheet('Беру заказ', '<p class="muted">' + esc(o.what || 'Перевозка') + '</p>' +
-      '<label class="fld"><span>Ваша цена (необязательно)</span><input class="inp" name="tp" inputmode="numeric" placeholder="' + (o.calc && o.calc.lo ? V.fmtNum(o.calc.lo) : '10 000') + '" value="' + (o.my && o.my.price ? V.fmtNum(o.my.price) : '') + '"><b class="suffix">₸</b></label>' +
+    var sug = o.calc && o.calc.lo ? [o.calc.lo, Math.round((o.calc.lo + (o.calc.hi || o.calc.lo)) / 2 / 500) * 500, o.calc.hi].filter(function (v, i, a) { return v && a.indexOf(v) === i; }) : [];
+    var s = V.sheet('Могу за … ₸', '<p class="muted">' + esc(o.what || V.cargoLabel(o.cargo) || 'Перевозка') + '</p>' +
+      (sug.length ? '<div class="qchips">' + sug.map(function (v) { return '<button type="button" class="qchip" data-sug="' + v + '">' + V.fmtNum(v) + ' ₸</button>'; }).join('') + '</div><p class="fine">Подсказки — из примерного расчёта клиента. Ставьте свою цену.</p>' : '') +
+      '<label class="fld"><span>Ваша цена</span><input class="inp" name="tp" inputmode="numeric" placeholder="' + (o.calc && o.calc.lo ? V.fmtNum(o.calc.lo) : '10 000') + '" value="' + (o.my && o.my.price ? V.fmtNum(o.my.price) : '') + '"><b class="suffix">₸</b></label>' +
       '<label class="fld"><span>Комментарий</span><input class="inp" name="tc" maxlength="200" placeholder="Буду через 30 минут" value="' + esc(o.my ? o.my.comment : '') + '"></label>' +
-      '<button type="button" class="btn btn-grad btn-block" data-go>Откликнуться</button><p class="fine">Клиент увидит ваш отклик и сможет написать вам в WhatsApp. Когда клиент выберет вас, здесь появится его телефон; заказ закроется для остальных.</p>', 'take-sheet');
-    var tp = s.el.querySelector('[name=tp]'); tp.addEventListener('input', function () { tp.value = V.fmtNum(tp.value.replace(/\D/g, '').slice(0, 8)); });
+      '<button type="button" class="btn btn-grad btn-block" data-go>Откликнуться без цены</button><p class="fine">Клиент увидит ваш отклик и сможет написать вам в WhatsApp. Когда клиент выберет вас, здесь появится его телефон; заказ закроется для остальных.</p>', 'take-sheet');
+    var tp = s.el.querySelector('[name=tp]'), go = s.el.querySelector('[data-go]');
+    function lbl() { var v = +tp.value.replace(/\D/g, ''); go.textContent = v ? 'Могу за ' + V.fmtNum(v) + ' ₸ — предложить' : 'Откликнуться без цены'; }
+    tp.addEventListener('input', function () { tp.value = V.fmtNum(tp.value.replace(/\D/g, '').slice(0, 8)); lbl(); });
+    s.el.addEventListener('click', function (ev) { var c = ev.target.closest('[data-sug]'); if (c) { tp.value = V.fmtNum(c.dataset.sug); lbl(); } });
+    lbl();
     s.el.querySelector('[data-go]').addEventListener('click', function () {
       C.rpc('vz_order_respond', { p_key: C.key(), p_id: o.id, p_price: +tp.value.replace(/\D/g, '') || null, p_comment: s.el.querySelector('[name=tc]').value }).then(function () {
-        s.close(); V.toast('Отклик отправлен! Клиент увидит его и напишет вам'); loadFeed();
+        s.close(); V.toast('Предложение отправлено! Клиент увидит его и напишет вам'); loadFeed();
       }, function (er) { V.toast(er.message); });
     });
   });
