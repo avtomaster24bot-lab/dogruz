@@ -180,7 +180,7 @@ card=head('Визитка водителя — ВЕЗУ','Грузоперево
     <a class="btn btn-wa btn-xl" id="wa" href="#" target="_blank" rel="noopener"><svg><use href="#i-wa"/></svg><span data-i18n="wa_short">WhatsApp</span></a>
     <a class="btn btn-call btn-xl" id="call" href="#"><svg><use href="#i-phone"/></svg><span data-i18n="call">Позвонить</span></a>
   </div>
-  <button type="button" class="btn btn-share btn-block card-share" id="share2"><svg><use href="#i-share"/></svg><span>Поделиться водителем с друзьями</span></button>
+  <button type="button" class="btn btn-share btn-block card-share" id="share2"><svg><use href="#i-share"/></svg><span>Поделиться водителем</span></button>
 
   <nav class="iconrow" aria-label="Действия">
     <button type="button" id="vcf"><svg><use href="#i-user"/></svg><span data-i18n="save">В контакты</span></button>
