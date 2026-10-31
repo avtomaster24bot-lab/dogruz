@@ -1,32 +1,51 @@
-/* ВЕЗУ: калькулятор цены. Тарифы по умолчанию — здесь (одно место). Водитель может задать свои в конструкторе (d.rt). */
+/* ВЕЗУ: калькулятор ПРИМЕРНОЙ цены по простому правилу (мин. заказ + км × тариф + грузчики + этажи).
+   Тарифы: водителя (d.rt, в конструкторе) или тарифы по умолчанию, которые владелец задаёт в админке (vz_settings.calc_rates).
+   Своих «рыночных» цен в коде нет: если тарифы не заданы — цену не показываем, только расстояние. */
 (function () {
   'use strict';
   var V = window.VEZU; if (!V) return;
   // min — минимальный заказ (включает inc км по городу), city/inter — ₸ за км, loader — ₸ за грузчика, floor — ₸ за этаж без лифта
-  var RATES = { min: 8000, city: 250, inter: 200, loader: 4000, floor: 1000, inc: 10 };
   var KEYS = ['min', 'city', 'inter', 'loader', 'floor', 'inc'];
-  var EXTRA = { 'Вывоз мусора': 2000, 'Переезд': 1000 };    // доп. к цене за тип груза (утилизация / упаковка)
-  function rates(rt) {           // rt — строка «8000,250,200,4000,1000,10» (пустые поля = по умолчанию)
-    var r = {}, a = String(rt || '').split(',');
-    KEYS.forEach(function (k, i) { var v = parseInt(a[i], 10); r[k] = isFinite(v) && a[i] !== '' ? v : RATES[k]; });
+  var OWNER = '';                // тарифы владельца (строка того же формата), грузятся из базы
+  try { OWNER = JSON.parse(localStorage.getItem('vezu-rates') || '""') || ''; } catch (e) {}
+  var RATES = parse(OWNER);
+  function parse(rt) { var r = {}, a = String(rt || '').split(','); KEYS.forEach(function (k, i) { var v = parseInt(a[i], 10); r[k] = isFinite(v) && a[i] !== '' && a[i] != null ? v : null; }); return r; }
+  // rt — строка «мин,км город,км межгород,грузчик,этаж,км в минимуме»; пустые поля — из тарифов владельца.
+  // Нет мин. заказа или тарифа за км → null (цену не считаем). Грузчик/этаж/км в минимуме без значения = 0.
+  function rates(rt) {
+    var a = parse(rt), o = parse(OWNER), r = {};
+    KEYS.forEach(function (k) { r[k] = a[k] != null ? a[k] : o[k]; });
+    if (r.min == null || r.city == null || r.inter == null) return null;
+    ['loader', 'floor', 'inc'].forEach(function (k) { if (r[k] == null) r[k] = 0; });
+    r.own = !!String(rt || '').replace(/,/g, '');
     return r;
+  }
+  var waiters = [];
+  function load() {
+    var CFG = window.VEZU_CFG || {}; if (!CFG.SUPABASE_URL || CFG.FORCE_OFF || !window.fetch) return;
+    fetch(CFG.SUPABASE_URL.replace(/\/$/, '') + '/rest/v1/rpc/vz_calc_rates', { method: 'POST', headers: { apikey: CFG.SUPABASE_KEY, 'Content-Type': 'application/json' }, body: '{}' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (v) {
+      v = typeof v === 'string' ? v : '';
+      if (v === OWNER) return;
+      OWNER = v; RATES = parse(v); try { localStorage.setItem('vezu-rates', JSON.stringify(v)); } catch (e) {}
+      waiters.forEach(function (f) { try { f(); } catch (e) {} });
+    }, function () {});
   }
   function packRates(o) { var s = KEYS.map(function (k) { return o[k] === '' || o[k] == null ? '' : String(parseInt(o[k], 10) || 0); }).join(','); return /^,*$/.test(s) ? '' : s; }
   function r500(x) { return Math.round(x / 500) * 500; }
-  function estimate(o, R) {      // o: {km, inter, loaders, floors, what}
-    R = R || RATES;
+  function estimate(o, R) {      // o: {km, inter, loaders, floors}
+    if (!R) return null;
     var km = Math.max(0, +o.km || 0), lines = [], base;
     if (o.inter) { base = Math.max(R.min, km * R.inter); lines.push(['Межгород ' + km + ' км × ' + V.fmtNum(R.inter) + ' ₸', base]); }
     else { base = R.min + Math.max(0, km - R.inc) * R.city; lines.push(['Минимальный заказ (до ' + R.inc + ' км)', R.min]); if (km > R.inc) lines.push(['+' + Math.round(km - R.inc) + ' км × ' + V.fmtNum(R.city) + ' ₸', base - R.min]); }
     var total = base;
-    if (o.loaders) { total += o.loaders * R.loader; lines.push(['Грузчики: ' + o.loaders + ' × ' + V.fmtNum(R.loader) + ' ₸', o.loaders * R.loader]); }
-    if (o.floors) { total += o.floors * R.floor; lines.push(['Этажи без лифта: ' + o.floors + ' × ' + V.fmtNum(R.floor) + ' ₸', o.floors * R.floor]); }
-    var key = o.cargo === 'trash' ? 'Вывоз мусора' : o.cargo === 'move' ? 'Переезд' : o.what;
-    var ex = EXTRA[key] || 0; if (ex) { total += ex; lines.push([key === 'Вывоз мусора' ? 'Утилизация мусора' : 'Упаковка / сборка', ex]); }
+    if (o.loaders && R.loader) { total += o.loaders * R.loader; lines.push(['Грузчики: ' + o.loaders + ' × ' + V.fmtNum(R.loader) + ' ₸', o.loaders * R.loader]); }
+    if (o.floors && R.floor) { total += o.floors * R.floor; lines.push(['Этажи без лифта: ' + o.floors + ' × ' + V.fmtNum(R.floor) + ' ₸', o.floors * R.floor]); }
     var lo = r500(total), hi = r500(total * 1.2 + 250);
     return { lo: lo, hi: Math.max(hi, lo + 500), lines: lines };
   }
-  function rangeText(e) { return '≈ ' + V.fmtNum(e.lo) + ' – ' + V.fmtNum(e.hi) + ' ₸'; }
+  function nb(n) { return V.fmtNum(n).replace(/ /g, '\u00a0'); }
+  function rangeText(e) { return 'примерно ' + nb(e.lo) + ' – ' + nb(e.hi) + '\u00a0₸'; }
 
   // ---------- расстояние ----------
   function tfetch(url, ms) {
@@ -97,14 +116,21 @@
     function calc() {
       var k = parseFloat(String(km.value).replace(',', '.'));
       if (!isFinite(k) || k <= 0) { form._calc = null; out.hidden = true; sum.textContent = ''; return; }
-      var o = { km: Math.round(k), inter: st.inter, loaders: st.loaders, floors: +fl.value || 0, what: what ? what.value.trim() : '', cargo: cargo ? cargo.value : '' };
-      var e = estimate(o, R());
+      var o = { km: Math.round(k), inter: st.inter, loaders: st.loaders, floors: +fl.value || 0 };
+      var r = R(), e = estimate(o, r);
       out.hidden = false;
+      form._calc = { km: o.km, how: st.how, inter: o.inter, loaders: o.loaders, floors: o.floors, a: st.a, b: st.b };
+      if (!e) {
+        out.innerHTML = '<p class="calc-range calc-km">~' + o.km + ' км</p><p class="fine">Цену предложат водители — сравните предложения и выберите.</p>';
+        sum.textContent = '~' + o.km + ' км'; return;
+      }
       out.innerHTML = '<p class="calc-range">' + rangeText(e) + '</p><ul>' + e.lines.map(function (l) { return '<li><span>' + V.esc(l[0]) + '</span><b>' + V.fmtNum(l[1]) + ' ₸</b></li>'; }).join('') + '</ul>' +
-        '<p class="fine">Точную цену назовёт водитель. Оценка — по ' + (opts.rates && opts.rates() ? 'тарифам этого водителя' : 'средним тарифам ВЕЗУ') + '.</p>';
-      sum.textContent = rangeText(e);
-      form._calc = { km: o.km, how: st.how, inter: o.inter, loaders: o.loaders, floors: o.floors, lo: e.lo, hi: e.hi, a: st.a, b: st.b };
+        '<p class="fine"><b>Примерно</b> — по простому правилу: минимальный заказ + км × тариф + грузчики + этажи, верхняя граница +20%. Тарифы — ' +
+        (r.own ? 'этого водителя' : 'по умолчанию ВЕЗУ') + '. Это не рыночная цена: точную назовёт водитель.</p>';
+      sum.textContent = '≈\u00a0' + nb(e.lo) + '–' + nb(e.hi) + '\u00a0₸';
+      form._calc.lo = e.lo; form._calc.hi = e.hi;
     }
+    waiters.push(calc);
     var seq = 0;
     function measure(auto) {
       var f = from.value.trim(), t = to.value.trim();
@@ -143,9 +169,10 @@
     var L = ['Расстояние: ~' + c.km + ' км' + (c.how === 'route' ? ' по маршруту' : c.how === 'line' ? ' (примерно)' : '') + (c.inter ? ', межгород' : ', по городу')];
     if (c.loaders) L.push('Грузчики: ' + c.loaders);
     if (c.floors) L.push('Этажей без лифта: ' + c.floors);
-    L.push('Оценка по калькулятору: ' + rangeText(c));
+    if (c.lo) L.push('Примерная оценка (по тарифам калькулятора): ' + V.fmtNum(c.lo) + ' – ' + V.fmtNum(c.hi) + ' ₸');
     if (c.a && c.b) { L.push('Маршрут на карте: ' + dirLink(c.a, c.b)); L.push('Куда (2ГИС): ' + gis(c.b)); }
     return L;
   }
-  window.VEZU_CALC = { RATES: RATES, KEYS: KEYS, rates: rates, packRates: packRates, estimate: estimate, rangeText: rangeText, bind: bind, lines: lines, geocode: geocode, route: route };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load); else setTimeout(load, 0);
+  window.VEZU_CALC = { get RATES() { return RATES; }, owner: function () { return OWNER; }, onRates: function (f) { waiters.push(f); }, KEYS: KEYS, rates: rates, packRates: packRates, estimate: estimate, rangeText: rangeText, bind: bind, lines: lines, geocode: geocode, route: route };
 })();

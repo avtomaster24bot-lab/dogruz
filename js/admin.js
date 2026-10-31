@@ -64,6 +64,7 @@
       '<div class="adm-stats" id="st"></div>' +
       '<section class="adm-sec" id="vfy"></section><section class="adm-sec" id="reqs"></section><section class="adm-sec" id="exp"></section>' +
       '<section class="adm-sec" id="revs"></section><section class="adm-sec" id="ords"></section>' +
+      '<details class="adm-sec glass adm-rates" id="rates"><summary><b>Примерная цена: тарифы по умолчанию</b></summary><div data-rates><p class="muted">Загрузка…</p></div></details>' +
       '<h3>Все водители</h3>' +
       '<input class="inp" id="q" placeholder="Имя, телефон, адрес (slug), город или @telegram" autocomplete="off">' +
       '<label class="fld"><span>Комментарий к продлению (например: Kaspi 1 500 ₸, 26.10)</span><input class="inp" id="note" maxlength="200"></label>' +
@@ -74,7 +75,30 @@
     document.getElementById('revs').addEventListener('click', revAct);
     document.getElementById('ords').addEventListener('click', ordAct);
     document.getElementById('vfy').addEventListener('click', vfyAct);
-    stats(); find(); lists(); reviews(); orders(); verifs();
+    stats(); find(); lists(); reviews(); orders(); verifs(); ratesUI();
+  }
+  // ---------- тарифы «примерной цены» (для общей формы заказа и водителей без своих тарифов) ----------
+  var RL = [['Минимальный заказ', '₸'], ['Км по городу (сверх минимума)', '₸/км'], ['Км межгород', '₸/км'], ['Грузчик', '₸'], ['Этаж без лифта', '₸'], ['Км входит в минимум', 'км']];
+  function ratesUI() {
+    var box = app.querySelector('[data-rates]');
+    C.rpc('vz_calc_rates', {}).then(function (v) {
+      var a = String(v || '').split(',');
+      box.innerHTML = '<p class="muted">Клиент видит «примерно X – Y ₸» по правилу: минимальный заказ + км × тариф + грузчики + этажи, верхняя граница +20%. ' +
+        'Обязательны минимальный заказ и оба тарифа за км; пусто — цену не показываем (только расстояние). Водители со своими тарифами — по своим.</p>' +
+        '<div class="rates-g">' + RL.map(function (l, i) { return '<label class="fld"><span>' + l[0] + '</span><input class="inp" data-r="' + i + '" inputmode="numeric" maxlength="7" value="' + esc(a[i] || '') + '"><b class="suffix">' + l[1] + '</b></label>'; }).join('') + '</div>' +
+        '<div class="row2"><button type="button" class="btn btn-grad btn-sm" data-rsave>Сохранить</button><button type="button" class="btn btn-glass btn-sm" data-rclear>Выключить оценку</button></div>' +
+        '<p class="fine" data-rnow>' + (v ? 'Сейчас: ' + esc(v) : 'Сейчас тарифы не заданы — общая форма заказа цену не показывает.') + '</p>';
+      box.querySelectorAll('[data-r]').forEach(function (i) { i.addEventListener('input', function () { i.value = i.value.replace(/\D/g, '').slice(0, 7); }); });
+      function save(val) {
+        call('vz_admin_set_rates', { p_rates: val }).then(function (r) { V.toast(r ? 'Тарифы сохранены' : 'Оценка выключена'); ratesUI(); }, function (er) { V.toast(er.message); });
+      }
+      box.querySelector('[data-rsave]').addEventListener('click', function () {
+        var vals = RL.map(function (l, i) { return box.querySelector('[data-r="' + i + '"]').value; });
+        if (!vals[0] || !vals[1] || !vals[2]) return V.toast('Заполните минимальный заказ и оба тарифа за км');
+        save(vals.join(','));
+      });
+      box.querySelector('[data-rclear]').addEventListener('click', function () { if (confirm('Выключить примерную цену в общей форме заказа?')) save(''); });
+    }, function (er) { box.innerHTML = '<p class="err-msg">' + esc(er.message) + '</p>'; });
   }
   // ---------- значок «Проверен»: заявки (фото — по ссылкам на 10 минут из закрытого хранилища) ----------
   function verifs() {

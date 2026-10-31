@@ -25,7 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="VEZU">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css?v=1676bba6">
+<link rel="stylesheet" href="css/style.css?v=c3bf4fa4">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -133,7 +133,7 @@
         <details class="more" id="rates">
           <summary>Мои тарифы для калькулятора цены</summary>
           <div class="f">
-            <p class="muted">Клиент видит примерную цену по вашим тарифам. Пустое поле — средний тариф ВЕЗУ (в подсказке).</p>
+            <p class="muted">Клиент видит <b>примерную</b> цену по вашим тарифам: минимальный заказ + км × тариф + грузчики + этажи. Пустое поле — тариф ВЕЗУ по умолчанию (в подсказке, если задан). Без минимального заказа и тарифов за км цена не считается — клиенты увидят только расстояние.</p>
             <div class="rates-g">
               <label class="fld"><span>Минимальный заказ</span><input class="inp" name="rt0" inputmode="numeric" maxlength="7"><b class="suffix">₸</b></label>
               <label class="fld"><span>Входит в минимум</span><input class="inp" name="rt5" inputmode="numeric" maxlength="3"><b class="suffix">км</b></label>
@@ -142,7 +142,7 @@
               <label class="fld"><span>Грузчик</span><input class="inp" name="rt3" inputmode="numeric" maxlength="6"><b class="suffix">₸</b></label>
               <label class="fld"><span>Этаж без лифта</span><input class="inp" name="rt4" inputmode="numeric" maxlength="6"><b class="suffix">₸</b></label>
             </div>
-            <button type="button" class="lnk" id="rtreset">Сбросить на средние</button>
+            <button type="button" class="lnk" id="rtreset">Очистить</button>
           </div>
         </details>
         <div class="navrow">
@@ -203,11 +203,11 @@
 
 <script src="js/vendor/qrcode.js?v=fbb6b69b"></script>
 <script src="js/vendor/inflate.js?v=4970705c"></script>
-<script src="js/common.js?v=ed14a58b"></script>
-<script src="js/calc.js?v=265693e3"></script>
+<script src="js/common.js?v=4b6d5e0e"></script>
+<script src="js/calc.js?v=db9410cd"></script>
 <script src="js/config.js?v=566bab7b"></script>
 <script src="js/cloud.js?v=11cce78e"></script>
-<script src="js/new.js?v=588866a9"></script>
+<script src="js/new.js?v=642662a3"></script>
 <script src="js/pay.js?v=d2520fb9"></script>
 <script src="js/sticker.js?v=2a33929e"></script>
 <script src="js/cab.js?v=9b21da17"></script>

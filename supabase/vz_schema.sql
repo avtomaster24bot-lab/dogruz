@@ -1396,3 +1396,27 @@ do $$ begin
     perform cron.schedule('vz-tg-delayed', '*/5 * * * *', 'select vz_private.vz_tg_delayed()');
   end if;
 end $$;
+
+-- ---------- v14: тарифы «примерной цены» (задаёт владелец в админке) ----------
+-- Формат как у водителя (d.rt): «мин. заказ, ₸/км город, ₸/км межгород, ₸ грузчик, ₸ этаж, км в мин. заказе».
+-- Пусто — общая форма заказа цену не показывает (только расстояние); у водителя со своими тарифами — по его тарифам.
+create or replace function vz_private.vz_calc_rates() returns text
+language sql stable security definer set search_path = '' as $$
+  select coalesce((select value from public.vz_settings where key = 'calc_rates'), '');
+$$;
+create or replace function vz_private.vz_admin_set_rates(p_admin text, p_rates text) returns text
+language plpgsql security definer set search_path = '' as $$
+declare r text := regexp_replace(coalesce(p_rates, ''), '\s', '', 'g');
+begin
+  if not vz_private.vz_is_admin(p_admin) then raise exception 'Нет прав' using errcode = '42501'; end if;
+  if r !~ '^([0-9]{0,7}(,[0-9]{0,7}){5})?$' then raise exception 'Неверный формат тарифов'; end if;
+  if r ~ '^,*$' then delete from public.vz_settings where key = 'calc_rates'; return ''; end if;
+  insert into public.vz_settings (key, value) values ('calc_rates', r) on conflict (key) do update set value = excluded.value;
+  return r;
+end $$;
+create or replace function public.vz_calc_rates() returns text
+language sql security invoker set search_path = '' as $$ select vz_private.vz_calc_rates() $$;
+create or replace function public.vz_admin_set_rates(p_admin text, p_rates text) returns text
+language sql security invoker set search_path = '' as $$ select vz_private.vz_admin_set_rates(p_admin, p_rates) $$;
+revoke all on function vz_private.vz_calc_rates(), vz_private.vz_admin_set_rates(text, text), public.vz_calc_rates(), public.vz_admin_set_rates(text, text) from public, anon, authenticated;
+grant execute on function vz_private.vz_calc_rates(), vz_private.vz_admin_set_rates(text, text), public.vz_calc_rates(), public.vz_admin_set_rates(text, text) to anon, authenticated;

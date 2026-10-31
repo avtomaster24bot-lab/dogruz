@@ -25,7 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="VEZU">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css?v=1676bba6">
+<link rel="stylesheet" href="css/style.css?v=c3bf4fa4">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -75,6 +75,13 @@
     <h1>Новый <span class="grad-text">заказ</span></h1>
     <button type="button" class="share-band" data-share="app"><span><b>Знаете, кому нужна машина?</b>Отправьте VEZU другу — пригодится при переезде</span><em><svg><use href="#i-share"/></svg>Поделиться</em></button>
     <form class="panel glass f" id="nord" novalidate>
+    <div class="fld tpl-f"><span class="cargo-h">Шаблоны заказа</span>
+    <div class="qchips" role="group" aria-label="Шаблоны заказа">
+      <button type="button" class="qchip" data-tpl="flat1">🏠 Переезд 1-комн.</button>
+      <button type="button" class="qchip" data-tpl="sofa">🛋 Диван + холодильник</button>
+      <button type="button" class="qchip" data-tpl="build">🧱 Стройматериалы</button>
+      <button type="button" class="qchip" data-tpl="trash">🗑 Вывоз мусора</button>
+    </div></div>
     <div class="fld cargo-f"><span class="cargo-h">Тип груза</span>
     <div class="qchips" role="group" aria-label="Тип груза"><input type="hidden" name="cargo" value="">
       <button type="button" class="qchip" data-cargo="move" aria-pressed="false">Переезд / мебель</button>
@@ -136,13 +143,13 @@
 </nav>
 <script>try{if(localStorage.getItem('vezu-key'))document.body.classList.add('is-driver')}catch(e){}</script>
 <p class="wrap narrow fine legal-foot"><a href="privacy.html">Политика конфиденциальности</a></p>
-<script src="js/common.js?v=ed14a58b"></script>
-<script src="js/calc.js?v=265693e3"></script>
+<script src="js/common.js?v=4b6d5e0e"></script>
+<script src="js/calc.js?v=db9410cd"></script>
 <script src="js/config.js?v=566bab7b"></script>
 <script src="js/cloud.js?v=11cce78e"></script>
 <script src="js/favs.js?v=610baa8d"></script>
 <script src="js/cab.js?v=9b21da17"></script>
-<script src="js/share.js?v=0119f5f9"></script>
-<script src="js/app.js?v=dce6f405"></script>
+<script src="js/share.js?v=295d3303"></script>
+<script src="js/app.js?v=546396f1"></script>
 </body>
 </html>

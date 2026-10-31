@@ -25,7 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="VEZU">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css?v=1676bba6">
+<link rel="stylesheet" href="css/style.css?v=c3bf4fa4">
 <link rel="preload" as="image" href="img/hero-van-720.webp" imagesrcset="img/hero-van-720.webp 720w, img/hero-van-1280.webp 1280w" imagesizes="(min-width:880px) 1120px, 100vw">
 </head>
 <body>
@@ -105,6 +105,13 @@
         <h2>Заказ <b>2 касания</b></h2>
         <button type="button" class="info-btn" data-info="geo" aria-label="Что такое «Где я»"><svg><use href="#i-info"/></svg>Где я?</button>
       </div>
+    <div class="fld tpl-f"><span class="cargo-h">Шаблоны заказа</span>
+    <div class="qchips" role="group" aria-label="Шаблоны заказа">
+      <button type="button" class="qchip" data-tpl="flat1">🏠 Переезд 1-комн.</button>
+      <button type="button" class="qchip" data-tpl="sofa">🛋 Диван + холодильник</button>
+      <button type="button" class="qchip" data-tpl="build">🧱 Стройматериалы</button>
+      <button type="button" class="qchip" data-tpl="trash">🗑 Вывоз мусора</button>
+    </div></div>
     <div class="fld cargo-f"><span class="cargo-h">Тип груза</span>
     <div class="qchips" role="group" aria-label="Тип груза"><input type="hidden" name="cargo" value="">
       <button type="button" class="qchip" data-cargo="move" aria-pressed="false">Переезд / мебель</button>
@@ -200,10 +207,10 @@
   <a href="app.html#feed" class="drv"><svg><use href="#i-feed"/></svg><span>Лента</span><em hidden>0</em></a>
 </nav>
 <script>try{if(localStorage.getItem('vezu-key'))document.body.classList.add('is-driver')}catch(e){}</script>
-<script src="js/common.js?v=ed14a58b"></script>
-<script src="js/calc.js?v=265693e3"></script>
+<script src="js/common.js?v=4b6d5e0e"></script>
+<script src="js/calc.js?v=db9410cd"></script>
 <script src="js/config.js?v=566bab7b"></script>
-<script src="js/share.js?v=0119f5f9"></script>
+<script src="js/share.js?v=295d3303"></script>
 <script>
 (function () {
   var V = window.VEZU, form = document.getElementById('order');

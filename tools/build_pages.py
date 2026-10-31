@@ -56,6 +56,14 @@ ORDER_FIELDS='''    <label class="fld"><span class="sr">Что везём</span>
       <label class="fld"><span class="sr" data-i18n="price">Ваша цена</span><input class="inp" name="price" inputmode="numeric" placeholder="Ваша цена" data-i18n-ph="price"><b class="suffix">₸</b></label>
     </div>
 '''
+TPL='''    <div class="fld tpl-f"><span class="cargo-h">Шаблоны заказа</span>
+    <div class="qchips" role="group" aria-label="Шаблоны заказа">
+      <button type="button" class="qchip" data-tpl="flat1">🏠 Переезд 1-комн.</button>
+      <button type="button" class="qchip" data-tpl="sofa">🛋 Диван + холодильник</button>
+      <button type="button" class="qchip" data-tpl="build">🧱 Стройматериалы</button>
+      <button type="button" class="qchip" data-tpl="trash">🗑 Вывоз мусора</button>
+    </div></div>
+'''
 QCHIPS='''    <div class="fld cargo-f"><span class="cargo-h">Тип груза</span>
     <div class="qchips" role="group" aria-label="Тип груза"><input type="hidden" name="cargo" value="">
       <button type="button" class="qchip" data-cargo="move" aria-pressed="false">Переезд / мебель</button>
@@ -128,7 +136,7 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
         <h2>Заказ <b>2 касания</b></h2>
         <button type="button" class="info-btn" data-info="geo" aria-label="Что такое «Где я»"><svg><use href="#i-info"/></svg>Где я?</button>
       </div>
-{QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём? Например: диван и 10 коробок')}      <button class="btn btn-wa btn-lg btn-block" type="submit" data-nofab><svg><use href="#i-wa"/></svg>Отправить в WhatsApp</button>
+{TPL}{QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём? Например: диван и 10 коробок')}      <button class="btn btn-wa btn-lg btn-block" type="submit" data-nofab><svg><use href="#i-wa"/></svg>Отправить в WhatsApp</button>
       <p class="hint">Откроется WhatsApp с готовым сообщением. Цену можно не указывать. Хотите, чтобы водители сами предложили цену? <a href="app.html#order">Заказ в ленту водителей →</a></p>
       <button type="button" class="share-band" data-share="home"><span><b>Знаете, кому нужна машина?</b>Отправьте VEZU другу — пригодится при переезде</span><em><svg><use href="#i-share"/></svg>Поделиться</em></button>
     </form>
@@ -335,7 +343,7 @@ new=head('Создать визитку водителя — ВЕЗУ','Бесп
         <details class="more" id="rates">
           <summary>Мои тарифы для калькулятора цены</summary>
           <div class="f">
-            <p class="muted">Клиент видит примерную цену по вашим тарифам. Пустое поле — средний тариф ВЕЗУ (в подсказке).</p>
+            <p class="muted">Клиент видит <b>примерную</b> цену по вашим тарифам: минимальный заказ + км × тариф + грузчики + этажи. Пустое поле — тариф ВЕЗУ по умолчанию (в подсказке, если задан). Без минимального заказа и тарифов за км цена не считается — клиенты увидят только расстояние.</p>
             <div class="rates-g">
               <label class="fld"><span>Минимальный заказ</span><input class="inp" name="rt0" inputmode="numeric" maxlength="7"><b class="suffix">₸</b></label>
               <label class="fld"><span>Входит в минимум</span><input class="inp" name="rt5" inputmode="numeric" maxlength="3"><b class="suffix">км</b></label>
@@ -344,7 +352,7 @@ new=head('Создать визитку водителя — ВЕЗУ','Бесп
               <label class="fld"><span>Грузчик</span><input class="inp" name="rt3" inputmode="numeric" maxlength="6"><b class="suffix">₸</b></label>
               <label class="fld"><span>Этаж без лифта</span><input class="inp" name="rt4" inputmode="numeric" maxlength="6"><b class="suffix">₸</b></label>
             </div>
-            <button type="button" class="lnk" id="rtreset">Сбросить на средние</button>
+            <button type="button" class="lnk" id="rtreset">Очистить</button>
           </div>
         </details>
         <div class="navrow">
@@ -531,7 +539,7 @@ app=head('Заказ перевозки — ВЕЗУ','Опишите груз �
     <h1>Новый <span class="grad-text">заказ</span></h1>
     <button type="button" class="share-band" data-share="app"><span><b>Знаете, кому нужна машина?</b>Отправьте VEZU другу — пригодится при переезде</span><em><svg><use href="#i-share"/></svg>Поделиться</em></button>
     <form class="panel glass f" id="nord" novalidate>
-{QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём? Например: диван и 10 коробок')}      <label class="fld"><span>Точная дата и время (необязательно)</span><input class="inp" name="at" type="datetime-local"></label>
+{TPL}{QCHIPS}{ORDER_FIELDS.replace('{ph_what}','Что везём? Например: диван и 10 коробок')}      <label class="fld"><span>Точная дата и время (необязательно)</span><input class="inp" name="at" type="datetime-local"></label>
       <label class="fld"><span>Комментарий</span><input class="inp" name="note" maxlength="300" placeholder="Подъезд со двора, нужен домофон…"></label>
       <div class="row2">
         <label class="fld"><span>Ваше имя</span><input class="inp" name="cn" maxlength="30" placeholder="Имя" autocomplete="given-name"></label>

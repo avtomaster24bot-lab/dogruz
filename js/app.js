@@ -16,7 +16,7 @@
   function me() { var m = C.ls('vezu-me'); return m && typeof m === 'object' ? m : {}; }
   function ago(s) { var m = Math.round((Date.now() - new Date(s)) / 60000); return m < 1 ? 'только что' : m < 60 ? m + ' мин назад' : m < 1440 ? Math.round(m / 60) + ' ч назад' : new Date(s).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', timeZone: 'Asia/Almaty' }); }
   function when(o) { return o.when_at ? new Date(o.when_at).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }) : o.when || ''; }
-  function est(c) { return c && c.lo ? '≈ ' + V.fmtNum(c.lo) + ' – ' + V.fmtNum(c.hi) + ' ₸' : ''; }
+  function est(c) { return c && c.lo ? 'примерно ' + V.fmtNum(c.lo) + ' – ' + V.fmtNum(c.hi) + ' ₸' : ''; }
   function route(o) { return '<p class="o-route"><i class="dot d1"></i>' + esc(o.from || '—') + '<br><i class="dot d2"></i>' + esc(o.to || '—') + '</p>'; }
   function facts(o) {
     var c = o.calc || {}, a = [];
@@ -217,7 +217,7 @@
       var tag = o.mine ? '<span class="ost ost-taken">Клиент выбрал вас</span>' : o.personal ? '<span class="ost ost-me">Лично вам</span>' : '<span class="ost">Всем водителям</span>';
       var ml = mapLink(o.calc);
       return '<article class="ord glass' + (o.personal ? ' personal' : '') + (o.mine ? ' mine' : '') + '"><div class="ord-h">' + tag + '<span class="muted">' + esc(ago(o.at)) + (o.responses ? ' · откликов: ' + o.responses : '') + '</span></div>' +
-        '<h3>' + cargoTag(o) + esc(o.what || V.cargoLabel(o.cargo) || 'Перевозка') + '</h3>' + route(o) + facts(o) + (est(o.calc) ? '<p class="o-est">Оценка: ' + est(o.calc) + '</p>' : '') +
+        '<h3>' + cargoTag(o) + esc(o.what || V.cargoLabel(o.cargo) || 'Перевозка') + '</h3>' + route(o) + facts(o) + (est(o.calc) ? '<p class="o-est">Калькулятор: ' + est(o.calc) + '</p>' : '') +
         (o.note ? '<p class="resp-c">' + esc(o.note) + '</p>' : '') +
         (o.phone ? '<p class="fine">Клиент: ' + esc(o.name || 'без имени') + ' · +' + esc(o.phone) + '</p>' : '<p class="fine">' + (o.my ? 'Телефон появится, когда клиент выберет вас. Клиент видит ваш отклик и может написать вам в WhatsApp.' : 'Телефон клиента увидит только водитель, которого клиент выберет.') + '</p>') +
         (ml ? '<a class="lnk" href="' + esc(ml) + '" target="_blank" rel="noopener">Маршрут на карте</a>' : '') +

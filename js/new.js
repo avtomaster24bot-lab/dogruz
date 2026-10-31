@@ -17,8 +17,9 @@
   if (state.pr) f.elements.pr.value = V.fmtNum(state.pr);
   // тарифы калькулятора: rt = «мин,км город,км межгород,грузчик,этаж,км в минимуме»
   var CALC = window.VEZU_CALC, rtv = String(state.rt || '').split(',');
-  if (CALC) CALC.KEYS.forEach(function (k, i) { var el = f.elements['rt' + i]; if (!el) return; el.placeholder = String(CALC.RATES[k]); el.value = rtv[i] || ''; });
+  if (CALC) CALC.KEYS.forEach(function (k, i) { var el = f.elements['rt' + i]; if (!el) return; el.placeholder = CALC.RATES[k] != null ? String(CALC.RATES[k]) : ''; el.value = rtv[i] || ''; });
   if (state.rt) document.getElementById('rates').open = true;
+  if (CALC && CALC.onRates) CALC.onRates(function () { CALC.KEYS.forEach(function (k, i) { var el = f.elements['rt' + i]; if (el) el.placeholder = CALC.RATES[k] != null ? String(CALC.RATES[k]) : ''; }); });
   document.getElementById('rtreset').addEventListener('click', function () { for (var i = 0; i < 6; i++) f.elements['rt' + i].value = ''; update(); });
   var tgphoto = document.getElementById('tgphoto');
   tgphoto.checked = !!(state.f & V.TG_PHOTO);

@@ -733,6 +733,20 @@
         cg.dispatchEvent(new Event('input', { bubbles: true }));
       });
     });
+    // шаблоны заказа: заполняют «что везём», тип груза и грузчиков (цену не подставляют)
+    var TPL = { flat1: ['Переезд 1-комнатной квартиры: мебель, техника, коробки', 'move', 2], sofa: ['Диван и холодильник', 'move', 2],
+      build: ['Стройматериалы (мешки, листы, доски)', 'build', 0], trash: ['Вывоз мусора (мешки, старая мебель)', 'trash', 1] };
+    form.querySelectorAll('[data-tpl]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var x = TPL[b.dataset.tpl]; if (!x) return;
+        form.querySelectorAll('[data-tpl]').forEach(function (y) { y.classList.toggle('on', y === b); });
+        var w = form.querySelector('[name=what]'); if (w) { w.value = x[0]; w.dispatchEvent(new Event('input', { bubbles: true })); }
+        if (cg && cg.value !== x[1]) { var cb = form.querySelector('[data-cargo="' + x[1] + '"]'); if (cb) cb.click(); }
+        var lb = form.querySelector('[data-c=loaders] [data-v="' + x[2] + '"]'); if (lb) lb.click();
+        var fr = form.querySelector('[name=from]'); if (fr && !fr.value) fr.focus({ preventScroll: true });
+        toast('Шаблон подставлен — укажите адреса');
+      });
+    });
     var price = form.querySelector('[name=price]');
     if (price) price.addEventListener('input', function () { price.value = fmtNum(price.value.replace(/\D/g, '').slice(0, 9)); });
     form.addEventListener('submit', function (ev) {
