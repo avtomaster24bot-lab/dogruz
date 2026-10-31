@@ -43,16 +43,17 @@ create index if not exists vz_cards_created on public.vz_cards (created_at);
 -- v13: значок «Проверен». На визитке остаются только дата проверки и (при отказе) причина.
 alter table public.vz_cards add column if not exists verified_at timestamptz;
 alter table public.vz_cards add column if not exists verify_note text not null default '' check (char_length(verify_note) <= 200);
--- Заявка на проверку: госномер и пути к фото (авто + селфи) в ЗАКРЫТОМ bucket vz_verify.
+-- Заявка на проверку: госномер и путь к фото машины (без людей в кадре) в ЗАКРЫТОМ bucket vz_verify.
+-- v16: селфи убрано совсем (изображение лица — идентификатор ПД); столбец selfie_path удаляется ниже.
 -- Пишет/читает только edge-функция vz-verify (service_role). После решения админа заявка и фото удаляются;
 -- нерассмотренные — через 30 дней (vz_retention; файлы без заявки удаляет vz-verify при открытии списка админом).
 create table if not exists public.vz_verify_req (
   card_id     uuid primary key references public.vz_cards(id) on delete cascade,
   plate       text not null check (plate ~ '^[A-Z0-9]{4,10}$'),
   car_path    text not null,
-  selfie_path text not null,
   created_at  timestamptz not null default now()
 );
+alter table public.vz_verify_req drop column if exists selfie_path;
 alter table public.vz_verify_req enable row level security;
 revoke all on public.vz_verify_req from anon, authenticated;
 
@@ -186,7 +187,7 @@ revoke all on sequence public.vz_reviews_id_seq, public.vz_review_complaints_id_
 -- Журнал согласий на обработку персональных данных (доказательство согласия). Пишут только функции.
 create table if not exists public.vz_consents (
   id         bigint generated always as identity primary key,
-  kind       text not null check (kind in ('driver', 'order', 'review', 'pay')),
+  kind       text not null check (kind in ('driver', 'order', 'review', 'pay', 'verify')),
   version    text not null,
   card_id    uuid references public.vz_cards(id) on delete set null,
   order_id   uuid,                               -- без FK: запись о согласии живёт дольше заказа
@@ -196,6 +197,9 @@ create table if not exists public.vz_consents (
 create index if not exists vz_consents_card on public.vz_consents (card_id);
 create index if not exists vz_consents_order on public.vz_consents (order_id);
 alter table public.vz_consents enable row level security;
+-- v16: согласие на проверку «Проверен» (verify_v1) — пишет edge-функция vz-verify
+alter table public.vz_consents drop constraint if exists vz_consents_kind_check;
+alter table public.vz_consents add constraint vz_consents_kind_check check (kind in ('driver', 'order', 'review', 'pay', 'verify'));
 revoke all on public.vz_consents from anon, authenticated;
 revoke all on sequence public.vz_consents_id_seq from anon, authenticated;
 
@@ -1132,7 +1136,7 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 values ('vz_photos', 'vz_photos', true, 262144, array['image/webp', 'image/jpeg'])
 on conflict (id) do update set public = excluded.public, file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
--- v13: ЗАКРЫТЫЙ bucket для фото проверки (авто + селфи): без публичных ссылок, доступ только service_role
+-- v13: ЗАКРЫТЫЙ bucket для фото проверки (только фото машины, без людей; селфи убрано в v16): без публичных ссылок, доступ только service_role
 -- (админ видит фото по подписанной ссылке на 10 минут); файлы удаляются после решения.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('vz_verify', 'vz_verify', false, 409600, array['image/jpeg'])

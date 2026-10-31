@@ -74,7 +74,7 @@
       .then(function (r) {
         return r.json().catch(function () { return {}; }).then(function (j) {
           if (!r.ok) {
-            var map = { bad_plate: 'Проверьте госномер', bad_image: 'Не удалось прочитать фото — выберите другое', no_card: 'Сначала сохраните визитку в облаке', already: 'Визитка уже проверена', blocked: 'Визитка заблокирована', forbidden: 'Нет прав' };
+            var map = { bad_plate: 'Проверьте госномер', need_consent: 'Отметьте согласие на обработку', bad_image: 'Не удалось прочитать фото — выберите другое', no_card: 'Сначала сохраните визитку в облаке', already: 'Визитка уже проверена', blocked: 'Визитка заблокирована', forbidden: 'Нет прав' };
             throw new Error(map[j.error] || 'Не удалось отправить (' + (j.error || r.status) + ')');
           }
           return j;

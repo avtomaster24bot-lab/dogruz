@@ -1,8 +1,9 @@
-// ВЕЗУ: значок «Проверен». Водитель отправляет из кабинета фото машины, госномер и селфи;
-// админ одобряет или отклоняет в admin.html. Фото лежат в ЗАКРЫТОМ bucket vz_verify (public = false),
-// админ видит их по подписанной ссылке на 10 минут. После решения заявка и оба фото удаляются —
+// ВЕЗУ: значок «Проверен». Водитель отправляет из кабинета фото машины (с госномером, БЕЗ людей в кадре) и госномер;
+// селфи/фото лица не принимаются (v16). Админ одобряет или отклоняет в admin.html. Фото лежит в ЗАКРЫТОМ bucket
+// vz_verify (public = false), админ видит его по подписанной ссылке на 10 минут. После решения заявка и фото удаляются —
 // на визитке остаются только дата проверки (verified_at) или причина отказа (verify_note).
-// POST { key, plate, car: "data:image/jpeg;base64,...", selfie: "data:image/jpeg;base64,..." } → { state: "pending" }
+// Согласие (галочка verify_v1) обязательно и записывается в журнал vz_consents (kind = 'verify').
+// POST { key, plate, car: "data:image/jpeg;base64,...", consent: "verify_v1", dev? } → { state: "pending" }
 // POST { key, cancel: true }                     → { state: "none" }   (отозвать заявку, фото удаляются)
 // POST { admin, list: true }                     → { items: [...] }    (+ удаляет «осиротевшие» файлы)
 // POST { admin, card, decide: "ok"|"no", note? } → { ok: true }        (заявка и фото удаляются)
@@ -35,6 +36,7 @@ function jpeg(s: unknown): Uint8Array | null {
   return a.length > 1000 && a.length <= MAX && a[0] === 0xff && a[1] === 0xd8 ? a : null;
 }
 const UUID = /^[0-9a-f-]{36}$/;
+const CONSENT = "verify_v1";
 
 Deno.serve(async (req) => {
   const h = cors(req.headers.get("origin"));
@@ -57,7 +59,7 @@ Deno.serve(async (req) => {
     const { data: adm } = await db.from("vz_admins").select("key_hash").eq("key_hash", await sha256hex(ak)).maybeSingle();
     if (!adm) return json({ error: "forbidden" }, 403, h);
     if (body.list) {
-      const { data: rows, error } = await db.from("vz_verify_req").select("card_id, plate, car_path, selfie_path, created_at, vz_cards(slug, phone, city, data, photo_path, verified_at)").order("created_at");
+      const { data: rows, error } = await db.from("vz_verify_req").select("card_id, plate, car_path, created_at, vz_cards(slug, phone, city, data, photo_path, verified_at)").order("created_at");
       if (error) { console.error("list", error); return json({ error: "db" }, 500, h); }
       // файлы без заявки (визитка удалена, заявка истекла) — удалить
       const live = new Set((rows ?? []).map((r) => r.card_id));
@@ -65,11 +67,11 @@ Deno.serve(async (req) => {
       for (const d of (dirs ?? []).filter((d) => UUID.test(d.name) && !live.has(d.name))) await wipe(d.name);
       const items = [];
       for (const r of rows ?? []) {
-        const { data: s } = await db.storage.from(B).createSignedUrls([r.car_path, r.selfie_path], 600);
+        const { data: s } = await db.storage.from(B).createSignedUrl(r.car_path, 600);
         // deno-lint-ignore no-explicit-any
         const c: any = r.vz_cards ?? {};
         items.push({ card: r.card_id, plate: r.plate, at: r.created_at, slug: c.slug, p: c.phone, city: c.city, n: c.data?.n, car: c.data?.c,
-          photo: c.photo_path, car_url: s?.[0]?.signedUrl ?? null, selfie_url: s?.[1]?.signedUrl ?? null });
+          photo: c.photo_path, car_url: s?.signedUrl ?? null });
       }
       return json({ items }, 200, h);
     }
@@ -102,16 +104,20 @@ Deno.serve(async (req) => {
   const plate = String(body.plate ?? "").toUpperCase().replace(/[^A-Z0-9А-Я]/g, "")
     .replace(/[АВЕКМНОРСТХУ]/g, (ch) => ({ А: "A", В: "B", Е: "E", К: "K", М: "M", Н: "H", О: "O", Р: "P", С: "C", Т: "T", Х: "X", У: "Y" } as Record<string, string>)[ch]);
   if (!/^[A-Z0-9]{4,10}$/.test(plate)) return json({ error: "bad_plate" }, 400, h);
-  const car = jpeg(body.car), selfie = jpeg(body.selfie);
-  if (!car || !selfie) return json({ error: "bad_image" }, 400, h);
+  if (body.consent !== CONSENT) return json({ error: "need_consent" }, 400, h);
+  const car = jpeg(body.car);
+  if (!car) return json({ error: "bad_image" }, 400, h);
   await wipe(card.id);
-  const ts = Date.now(), cp = `${card.id}/car${ts}.jpg`, sp = `${card.id}/selfie${ts}.jpg`;
-  for (const [p, b] of [[cp, car], [sp, selfie]] as [string, Uint8Array][]) {
-    const up = await db.storage.from(B).upload(p, b, { contentType: "image/jpeg", upsert: false });
-    if (up.error) { console.error("upload", up.error); await wipe(card.id); return json({ error: "upload" }, 500, h); }
-  }
-  const { error: ie } = await db.from("vz_verify_req").insert({ card_id: card.id, plate, car_path: cp, selfie_path: sp });
+  const cp = `${card.id}/car${Date.now()}.jpg`;
+  const up = await db.storage.from(B).upload(cp, car, { contentType: "image/jpeg", upsert: false });
+  if (up.error) { console.error("upload", up.error); await wipe(card.id); return json({ error: "upload" }, 500, h); }
+  const { error: ie } = await db.from("vz_verify_req").insert({ card_id: card.id, plate, car_path: cp });
   if (ie) { console.error("insert", ie); await wipe(card.id); return json({ error: "db" }, 500, h); }
+  // журнал согласий: как у остальных галочек (версия текста, визитка, хеш устройства)
+  const dev = String(body.dev ?? "");
+  const { error: ce } = await db.from("vz_consents").insert({ kind: "verify", version: CONSENT, card_id: card.id,
+    dev_hash: /^[A-Za-z0-9_-]{32,64}$/.test(dev) ? await sha256hex(dev) : "" });
+  if (ce) { console.error("consent", ce); await wipe(card.id); return json({ error: "db" }, 500, h); }
   await db.from("vz_cards").update({ verify_note: "" }).eq("id", card.id);
   return json({ state: "pending" }, 200, h);
 });

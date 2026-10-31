@@ -96,11 +96,11 @@
     if (card.verified_at) return '<p class="tg-ok"><span class="vf-b">✓ Проверен</span> с ' + esc(date(card.verified_at)) + '</p><p class="fine">Значок виден клиентам на визитке, в каталоге и в откликах на заказы.</p>';
     if (card.verify_pending) return '<p class="muted">⏳ Заявка на проверке. Обычно — в течение суток.</p><button type="button" class="btn btn-glass btn-sm" data-vfcancel>Отозвать заявку</button>';
     return (card.verify_note ? '<p class="vf-no">Не подтверждено: ' + esc(card.verify_note) + '</p>' : '') +
-      '<p class="muted">Клиенты чаще выбирают проверенных водителей. Пришлите фото машины с видимым госномером и селфи — администратор сверит их с визиткой.</p>' +
-      '<div class="vf-files"><label class="vf-f"><input type="file" accept="image/*" capture="environment" data-vfcar hidden><span data-vfl="car">🚚 Фото машины с номером</span></label>' +
-      '<label class="vf-f"><input type="file" accept="image/*" capture="user" data-vfself hidden><span data-vfl="self">🤳 Селфи</span></label></div>' +
+      '<p class="muted">Клиенты чаще выбирают проверенных водителей. Пришлите фото машины с видимым госномером — администратор сверит его с визиткой.</p>' +
+      '<p class="vf-warn">⚠️ <b>Без людей в кадре.</b> Снимайте машину сзади или сбоку так, чтобы номер читался, а в кадр не попали вы, пассажиры или прохожие. Селфи и фото документов не нужны.</p>' +
+      '<div class="vf-files one"><label class="vf-f"><input type="file" accept="image/*" capture="environment" data-vfcar hidden><span data-vfl="car">🚚 Фото машины с номером (без людей)</span></label></div>' +
       '<label class="fld"><span>Госномер</span><input class="inp" data-vfplate maxlength="12" placeholder="123ABC02" autocapitalize="characters"></label>' +
-      '<label class="check"><input type="checkbox" data-vfok><span>Согласен на обработку госномера, фото машины и селфи для проверки (<a href="privacy.html" target="_blank">политика</a>)</span></label>' +
+      V.consentHtml('verify') +
       '<button type="button" class="btn btn-grad btn-block" data-vfsend>Отправить на проверку</button>' +
       '<p class="fine">Фото и номер видит только администратор (закрытое хранилище, без публичных ссылок). После решения они удаляются — остаётся только отметка «Проверен» и дата. Нерассмотренные заявки удаляются через 30 дней.</p>';
   }
@@ -137,22 +137,22 @@
   function bind() {
     bindStatus(host, function (s) { if (card) card.status = s; });
     host.addEventListener('change', function (e) {
-      var t = e.target, k = t.matches('[data-vfcar]') ? 'car' : t.matches('[data-vfself]') ? 'self' : '';
-      if (!k || !t.files[0]) return;
-      var l = host.querySelector('[data-vfl="' + k + '"]'); l.textContent = '✓ ' + (k === 'car' ? 'Фото машины' : 'Селфи') + ' выбрано'; l.parentNode.classList.add('on');
+      var t = e.target;
+      if (!t.matches('[data-vfcar]') || !t.files[0]) return;
+      var l = host.querySelector('[data-vfl="car"]'); l.textContent = '✓ Фото машины выбрано'; l.parentNode.classList.add('on');
     });
     host.addEventListener('click', function (e) {
       if (e.target.closest('[data-ask]')) return askReview(card);
       if (e.target.closest('[data-vfcancel]')) return C.verifyCall({ key: C.key(), cancel: true }).then(function () { card.verify_pending = false; vfRefresh(); V.toast('Заявка отозвана, фото удалены'); }, function (er) { V.toast(er.message); });
       var vs = e.target.closest('[data-vfsend]');
       if (vs) {
-        var fc = host.querySelector('[data-vfcar]').files[0], fs = host.querySelector('[data-vfself]').files[0], pl = host.querySelector('[data-vfplate]').value.trim();
-        if (!fc || !fs) return V.toast('Добавьте оба фото');
-        if (!host.querySelector('[data-vfok]').checked) return V.toast('Отметьте согласие на обработку');
+        var fc = host.querySelector('[data-vfcar]').files[0], pl = host.querySelector('[data-vfplate]').value.trim(), ok = host.querySelector('[data-consent="verify"]');
+        if (!fc) return V.toast('Добавьте фото машины');
+        if (!ok || !ok.checked) return V.toast('Отметьте согласие на обработку');
         if (pl.replace(/[^0-9A-Za-zА-Яа-я]/g, '').length < 4) return V.toast('Укажите госномер');
         vs.disabled = true; vs.textContent = 'Отправляю…';
-        return Promise.all([C.shrinkJpeg(fc), C.shrinkJpeg(fs)]).then(function (im) {
-          return C.verifyCall({ key: C.key(), plate: pl, car: im[0], selfie: im[1] });
+        return C.shrinkJpeg(fc).then(function (im) {
+          return C.verifyCall({ key: C.key(), plate: pl, car: im, consent: V.CONSENT.verify.v, dev: C.device() });
         }).then(function () { card.verify_pending = true; card.verify_note = ''; vfRefresh(); V.toast('Отправлено на проверку'); },
           function (er) { vs.disabled = false; vs.textContent = 'Отправить на проверку'; V.toast(er.message); });
       }

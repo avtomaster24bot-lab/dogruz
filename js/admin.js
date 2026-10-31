@@ -108,9 +108,9 @@
         return '<article class="adm-row glass vf-adm" data-card="' + esc(r.card) + '"><div class="adm-main"><b>' + esc(r.n) + '</b> <span class="muted">+' + esc(r.p) + '</span>' +
           (r.slug ? ' · <a href="' + esc(C.shortUrl(r.slug)) + '" target="_blank">/' + esc(r.slug) + '</a>' : '') + '<br><span class="muted">' + esc([r.car, r.city].filter(Boolean).join(' · ')) + ' · ' + ago(r.at) + '</span>' +
           '<br>Госномер: <b class="vf-plate">' + esc(r.plate) + '</b>' +
-          '<div class="vf-ph">' + [['car_url', 'Машина'], ['selfie_url', 'Селфи']].map(function (x) { return r[x[0]] ? '<a href="' + esc(r[x[0]]) + '" target="_blank" rel="noopener"><img src="' + esc(r[x[0]]) + '" alt="' + x[1] + '" loading="lazy"><small>' + x[1] + '</small></a>' : '<span class="muted">' + x[1] + ': нет файла</span>'; }).join('') +
+          '<div class="vf-ph">' + [['car_url', 'Машина']].map(function (x) { return r[x[0]] ? '<a href="' + esc(r[x[0]]) + '" target="_blank" rel="noopener"><img src="' + esc(r[x[0]]) + '" alt="' + x[1] + '" loading="lazy"><small>' + x[1] + '</small></a>' : '<span class="muted">' + x[1] + ': нет файла</span>'; }).join('') +
           (r.photo ? '<a href="' + esc(C.photoUrl(r.photo)) + '" target="_blank" rel="noopener"><img src="' + esc(C.photoUrl(r.photo)) + '" alt="Фото визитки" loading="lazy"><small>На визитке</small></a>' : '') + '</div>' +
-          '<p class="fine">Сверьте: номер на фото = указанный, лицо на селфи = фото визитки (если есть), машина = тип на визитке. После решения фото и номер удаляются.</p></div>' +
+          '<p class="fine">Сверьте: номер на фото = указанный, машина = тип на визитке. Если в кадре люди — отклоните с причиной «Переснимите без людей». После решения фото и номер удаляются.</p></div>' +
           '<div class="adm-act"><button class="btn btn-grad btn-sm" data-vok="1">Одобрить</button><button class="btn btn-glass btn-sm" data-vno="1">Отклонить</button></div></article>';
       }).join('') : '';
     }, function (er) { document.getElementById('vfy').innerHTML = '<p class="err-msg">Заявки на проверку не загрузились: ' + esc(er.message) + '</p>'; });
