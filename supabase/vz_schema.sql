@@ -1165,3 +1165,208 @@ do $$ begin
     perform cron.schedule('vz-retention', '0 22 * * *', 'select vz_private.vz_retention()');
   end if;
 end $$;
+
+-- ---------- v12: уведомления водителям в Telegram (@vezu_orders_bot) ----------
+-- Водитель подключает Telegram в кабинете (ссылка t.me/vezu_orders_bot?start=<одноразовый токен>), выбирает города.
+-- Новый заказ → триггер → pg_net → edge-функция vz-tg → сообщения в Telegram (без имени и телефона клиента).
+-- Про — сразу, остальным — через 10 минут (pg_cron vz-tg-delayed). chat_id — персональные данные: удаляется,
+-- когда водитель отключает Telegram, пишет боту /stop или удаляет визитку (каскад).
+do $$ begin   -- pg_net нужен для вызова edge-функции из базы (есть в Supabase; локально — нет, тогда уведомления просто не уходят)
+  if exists (select 1 from pg_available_extensions where name = 'pg_net') then create extension if not exists pg_net; end if;
+end $$;
+create table if not exists public.vz_tg (
+  card_id   uuid primary key references public.vz_cards(id) on delete cascade,
+  chat_id   bigint not null unique,
+  cities    text not null default '' check (char_length(cities) <= 200),   -- через запятую; '' = все заказы
+  enabled   boolean not null default true,
+  linked_at timestamptz not null default now()
+);
+create table if not exists public.vz_tg_links (
+  token      text primary key,
+  card_id    uuid not null references public.vz_cards(id) on delete cascade,
+  expires_at timestamptz not null default now() + interval '30 minutes'
+);
+alter table public.vz_orders add column if not exists tg_pro_at timestamptz;
+alter table public.vz_orders add column if not exists tg_all_at timestamptz;
+alter table public.vz_tg enable row level security;
+alter table public.vz_tg_links enable row level security;
+revoke all on public.vz_tg, public.vz_tg_links from anon, authenticated;
+
+create or replace function vz_private.vz_tg_status(p_key text) returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare c public.vz_cards; t public.vz_tg;
+begin
+  select * into c from public.vz_cards where key_hash = vz_private.vz_hash(p_key);
+  if c.id is null then raise exception 'Сначала сохраните визитку в облаке'; end if;
+  select * into t from public.vz_tg where card_id = c.id;
+  return jsonb_build_object('linked', t.card_id is not null, 'enabled', coalesce(t.enabled, true), 'cities', coalesce(t.cities, ''),
+    'city', c.city, 'pro', coalesce(c.pro_until > now(), false), 'bot', 'vezu_orders_bot');
+end $$;
+
+create or replace function vz_private.vz_tg_link(p_key text) returns text
+language plpgsql security definer set search_path = '' as $$
+declare cid uuid; tok text := replace(gen_random_uuid()::text, '-', '');
+begin
+  select id into cid from public.vz_cards where key_hash = vz_private.vz_hash(p_key) and not is_blocked;
+  if cid is null then raise exception 'Сначала сохраните визитку в облаке'; end if;
+  delete from public.vz_tg_links where card_id = cid or expires_at < now();
+  insert into public.vz_tg_links (token, card_id) values (tok, cid);
+  return tok;
+end $$;
+
+create or replace function vz_private.vz_tg_set(p_key text, p_cities text, p_enabled boolean) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare cid uuid; cl text;
+begin
+  select id into cid from public.vz_cards where key_hash = vz_private.vz_hash(p_key);
+  if cid is null then raise exception 'Сначала сохраните визитку в облаке'; end if;
+  cl := left(array_to_string(array(select distinct btrim(x) from unnest(string_to_array(regexp_replace(coalesce(p_cities, ''), '[^[:alpha:] ,-]', '', 'g'), ',')) x where btrim(x) <> '' limit 10), ', '), 200);
+  update public.vz_tg set cities = cl, enabled = coalesce(p_enabled, enabled) where card_id = cid;
+  if not found then raise exception 'Сначала подключите Telegram'; end if;
+  return jsonb_build_object('cities', cl, 'enabled', coalesce(p_enabled, true));
+end $$;
+
+create or replace function vz_private.vz_tg_unlink(p_key text) returns boolean
+language plpgsql security definer set search_path = '' as $$
+declare cid uuid;
+begin
+  select id into cid from public.vz_cards where key_hash = vz_private.vz_hash(p_key);
+  if cid is null then return false; end if;
+  delete from public.vz_tg where card_id = cid; delete from public.vz_tg_links where card_id = cid;
+  return true;
+end $$;
+
+-- Район без номеров домов/квартир: «Абая 150, кв 3, Алматы» → «Абая, кв, Алматы»
+create or replace function vz_private.vz_area(p text) returns text
+language sql immutable set search_path = '' as $$
+  select btrim(regexp_replace(regexp_replace(regexp_replace(coalesce(p, ''), '[^\s,]*[0-9][^\s,]*', '', 'g'), '\s+', ' ', 'g'), '\s*(,\s*)+', ', ', 'g'), ' ,');
+$$;
+-- только для edge-функции (service_role)
+create or replace function vz_private.vz_tg_bind(p_token text, p_chat bigint) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare cid uuid; nm text; cty text;
+begin
+  delete from public.vz_tg_links where token = coalesce(p_token, '') and expires_at > now() returning card_id into cid;
+  if cid is null then return null; end if;
+  delete from public.vz_tg where chat_id = p_chat and card_id <> cid;
+  insert into public.vz_tg (card_id, chat_id) values (cid, p_chat)
+    on conflict (card_id) do update set chat_id = excluded.chat_id, enabled = true, linked_at = now();
+  select coalesce(data->>'n', ''), city into nm, cty from public.vz_cards where id = cid;
+  return jsonb_build_object('name', nm, 'city', cty);
+end $$;
+
+create or replace function vz_private.vz_tg_unbind_chat(p_chat bigint) returns boolean
+language sql security definer set search_path = '' as $$
+  with d as (delete from public.vz_tg where chat_id = p_chat returning 1) select exists (select 1 from d);
+$$;
+
+-- Кому отправить заказ. p_tier: 'pro' — сразу (Про и «лично вам»), 'all' — остальным через 10 минут. Повторно не отправляет.
+create or replace function vz_private.vz_tg_job(p_order uuid, p_tier text) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare o public.vz_orders; known text[]; chats bigint[];
+begin
+  select * into o from public.vz_orders where id = p_order for update;
+  if o.id is null or o.status <> 'open' or o.expires_at < now()
+     or exists (select 1 from public.vz_devices d where d.dev_hash = o.dev_hash and d.blocked) then return null; end if;
+  if p_tier = 'pro' then
+    if o.tg_pro_at is not null then return null; end if;
+    update public.vz_orders set tg_pro_at = now() where id = o.id;
+  elsif p_tier = 'all' then
+    if o.tg_all_at is not null or o.created_at > now() - interval '10 minutes' then return null; end if;
+    update public.vz_orders set tg_all_at = now() where id = o.id;
+  else return null; end if;
+  known := array(select distinct lower(btrim(x)) from (select city x from public.vz_cards where city <> ''
+    union select unnest(string_to_array(t.cities, ',')) from public.vz_tg t) s where btrim(x) <> '');
+  select coalesce(array_agg(t.chat_id), '{}') into chats
+  from public.vz_tg t join public.vz_cards c on c.id = t.card_id
+  where t.enabled and not c.is_blocked
+    and (case when o.scope = 'picked' then p_tier = 'pro' and exists (select 1 from public.vz_order_targets x where x.order_id = o.id and x.card_id = c.id)
+         else (case when p_tier = 'pro' then coalesce(c.pro_until > now(), false) else not coalesce(c.pro_until > now(), false) end)
+           and (btrim(t.cities) = ''
+             or not exists (select 1 from unnest(known) k where position(k in lower(o.from_addr || ' ' || o.to_addr)) > 0)
+             or exists (select 1 from unnest(string_to_array(t.cities, ',')) y where btrim(y) <> '' and position(lower(btrim(y)) in lower(o.from_addr || ' ' || o.to_addr)) > 0))
+         end);
+  return jsonb_build_object('chats', to_jsonb(chats), 'scope', o.scope, 'cargo', o.cargo,
+    'from', vz_private.vz_area(o.from_addr), 'to', vz_private.vz_area(o.to_addr),
+    'when', o.when_text, 'when_at', o.when_at, 'km', o.calc->'km', 'price', o.calc->'price');
+end $$;
+
+-- Вызов edge-функции (pg_net). Адрес и секрет — в vz_settings / Vault; без pg_net (локальный тест) — ничего не делает.
+create or replace function vz_private.vz_tg_call(p_order uuid, p_tier text) returns void
+language plpgsql security definer set search_path = '' as $$
+declare u text; sec text;
+begin
+  if to_regproc('net.http_post') is null then return; end if;
+  select value into u from public.vz_settings where key = 'tg_fn_url';
+  if coalesce(u, '') = '' then return; end if;
+  begin execute 'select decrypted_secret from vault.decrypted_secrets where name = $1' into sec using 'vz_tg_notify_secret'; exception when others then sec := null; end;
+  if sec is null then return; end if;
+  execute 'select net.http_post(url := $1, body := $2, headers := $3, timeout_milliseconds := 5000)'
+    using u, jsonb_build_object('order', p_order, 'tier', p_tier), jsonb_build_object('Content-Type', 'application/json', 'x-vz-notify', sec);
+exception when others then null;   -- уведомления не должны ломать заказ
+end $$;
+
+create or replace function vz_private.vz_tg_on_order() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  perform vz_private.vz_tg_call(new.id, 'pro');
+  return new;
+end $$;
+drop trigger if exists vz_orders_tg on public.vz_orders;
+create trigger vz_orders_tg after insert on public.vz_orders for each row execute function vz_private.vz_tg_on_order();
+
+create or replace function vz_private.vz_tg_delayed() returns int
+language plpgsql security definer set search_path = '' as $$
+declare r record; n int := 0;
+begin
+  for r in select id from public.vz_orders where status = 'open' and expires_at > now() and created_at > now() - interval '3 hours'
+     and ((tg_all_at is null and created_at < now() - interval '10 minutes') or (tg_pro_at is null and created_at < now() - interval '2 minutes')) limit 50 loop
+    perform vz_private.vz_tg_call(r.id, 'pro'); perform vz_private.vz_tg_call(r.id, 'all'); n := n + 1;
+  end loop;
+  return n;
+end $$;
+
+create or replace function public.vz_tg_status(p_key text) returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_tg_status(p_key) $$;
+create or replace function public.vz_tg_link(p_key text) returns text
+language sql security invoker set search_path = '' as $$ select vz_private.vz_tg_link(p_key) $$;
+create or replace function public.vz_tg_set(p_key text, p_cities text, p_enabled boolean) returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_tg_set(p_key, p_cities, p_enabled) $$;
+create or replace function public.vz_tg_unlink(p_key text) returns boolean
+language sql security invoker set search_path = '' as $$ select vz_private.vz_tg_unlink(p_key) $$;
+create or replace function public.vz_tg_bind(p_token text, p_chat bigint) returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_tg_bind(p_token, p_chat) $$;
+create or replace function public.vz_tg_unbind_chat(p_chat bigint) returns boolean
+language sql security invoker set search_path = '' as $$ select vz_private.vz_tg_unbind_chat(p_chat) $$;
+create or replace function public.vz_tg_job(p_order uuid, p_tier text) returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_tg_job(p_order, p_tier) $$;
+-- секреты бота для edge-функции (только service_role): токен бота и секреты вебхука/уведомлений из Vault
+create or replace function vz_private.vz_tg_secrets() returns jsonb
+language plpgsql stable security definer set search_path = '' as $$
+declare j jsonb;
+begin
+  execute 'select jsonb_object_agg(name, decrypted_secret) from vault.decrypted_secrets where name in (''vz_tg_bot_token'', ''vz_tg_webhook_secret'', ''vz_tg_notify_secret'')' into j;
+  return coalesce(j, '{}');
+exception when others then return '{}';
+end $$;
+create or replace function public.vz_tg_secrets() returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_tg_secrets() $$;
+
+revoke all on function vz_private.vz_tg_status(text), vz_private.vz_tg_link(text), vz_private.vz_tg_set(text, text, boolean), vz_private.vz_tg_unlink(text),
+  vz_private.vz_tg_bind(text, bigint), vz_private.vz_tg_unbind_chat(bigint), vz_private.vz_tg_job(uuid, text), vz_private.vz_tg_call(uuid, text),
+  vz_private.vz_tg_on_order(), vz_private.vz_tg_delayed(), vz_private.vz_tg_secrets(),
+  public.vz_tg_status(text), public.vz_tg_link(text), public.vz_tg_set(text, text, boolean), public.vz_tg_unlink(text),
+  public.vz_tg_bind(text, bigint), public.vz_tg_unbind_chat(bigint), public.vz_tg_job(uuid, text), public.vz_tg_secrets() from public, anon, authenticated;
+grant execute on function public.vz_tg_status(text), vz_private.vz_tg_status(text), public.vz_tg_link(text), vz_private.vz_tg_link(text),
+  public.vz_tg_set(text, text, boolean), vz_private.vz_tg_set(text, text, boolean), public.vz_tg_unlink(text), vz_private.vz_tg_unlink(text) to anon, authenticated;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant usage on schema vz_private to service_role;
+    grant execute on function public.vz_tg_bind(text, bigint), vz_private.vz_tg_bind(text, bigint), public.vz_tg_unbind_chat(bigint), vz_private.vz_tg_unbind_chat(bigint),
+      public.vz_tg_job(uuid, text), vz_private.vz_tg_job(uuid, text), public.vz_tg_secrets(), vz_private.vz_tg_secrets() to service_role;
+  end if;
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.unschedule(jobid) from cron.job where jobname = 'vz-tg-delayed';
+    perform cron.schedule('vz-tg-delayed', '*/5 * * * *', 'select vz_private.vz_tg_delayed()');
+  end if;
+end $$;

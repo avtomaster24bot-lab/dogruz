@@ -693,3 +693,5 @@ body:has(.app) .share-fab{display:none}
 .prices-sec{margin-bottom:40px}.prices-sec .plan h3{margin:0 0 4px;font-size:18px}
 .cargo-f{margin-bottom:4px}.cargo-h{display:block;font-size:13px;font-weight:700;color:var(--muted);margin:0 0 6px 4px}
 .o-cargo{display:inline-block;margin:0 8px 4px 0;padding:3px 9px;border-radius:999px;background:rgba(79,209,255,.14);color:var(--c);font-size:12px;font-weight:800;vertical-align:middle}
+#tgsec h3{display:flex;align-items:center;gap:8px}.tg-ic{width:22px;height:22px;color:#2aabee}
+#tgsec [data-tg]{display:grid;gap:10px}.tg-ok{margin:0;font-weight:700}

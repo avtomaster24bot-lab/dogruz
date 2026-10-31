@@ -235,3 +235,37 @@ do $$ declare oid uuid; j jsonb; begin
   delete from public.vz_orders where dev_hash in (vz_private.vz_hash('odcargotest00000000000000000000000000000000000001'), vz_private.vz_hash('odcargotest00000000000000000000000000000000000002'));
 end $$;
 select 'CARGO OK';
+
+-- v12 telegram
+do $$ declare k text := 'tgkey_' || repeat('a', 30); k2 text := 'tgkey_' || repeat('b', 30); c1 uuid; c2 uuid; tok text; j jsonb; oid uuid; oid2 uuid;
+begin
+  perform public.vz_save_card(k, '{"n":"ТГ Про","p":"77000001231","t":"Алматы"}', 'tg-test-a', 'gazel', true, null, 'driver_v1');
+  perform public.vz_save_card(k2, '{"n":"ТГ Баз","p":"77000001232","t":"Астана"}', 'tg-test-b', 'gazel', true, null, 'driver_v1');
+  select id into c1 from public.vz_cards where slug = 'tg-test-a'; select id into c2 from public.vz_cards where slug = 'tg-test-b';
+  update public.vz_cards set pro_until = now() + interval '10 days' where id = c1;
+  update public.vz_cards set pro_until = null where id = c2;
+  tok := public.vz_tg_link(k); j := vz_private.vz_tg_bind(tok, 111);
+  if j->>'name' <> 'ТГ Про' then raise exception 'bind %', j; end if;
+  if vz_private.vz_tg_bind(tok, 111) is not null then raise exception 'token reuse'; end if;
+  perform vz_private.vz_tg_bind(public.vz_tg_link(k2), 222);
+  perform public.vz_tg_set(k2, 'Астана', true);
+  oid := public.vz_order_create('odtgtest000000000000000000000000000000000000001', '{"what":"тест","from":"Абая 150, Алматы","to":"Сатпаева 3","phone":"77000000088","cargo":"move"}', null, 'order_v1');
+  j := vz_private.vz_tg_job(oid, 'pro');
+  if j->'chats' <> '[111]'::jsonb then raise exception 'pro chats %', j; end if;
+  if j->>'from' <> 'Абая, Алматы' or j ? 'phone' then raise exception 'area %', j; end if;
+  if vz_private.vz_tg_job(oid, 'pro') is not null then raise exception 'pro twice'; end if;
+  if vz_private.vz_tg_job(oid, 'all') is not null then raise exception 'all too early'; end if;
+  update public.vz_orders set created_at = now() - interval '11 minutes' where id = oid;
+  j := vz_private.vz_tg_job(oid, 'all');
+  if j->'chats' <> '[]'::jsonb then raise exception 'astana driver must not get almaty order %', j; end if;
+  oid2 := public.vz_order_create('odtgtest000000000000000000000000000000000000002', '{"what":"тест","from":"Кабанбай 5","phone":"77000000088"}', null, 'order_v1');
+  update public.vz_orders set created_at = now() - interval '11 minutes' where id = oid2;
+  j := vz_private.vz_tg_job(oid2, 'all');
+  if j->'chats' <> '[222]'::jsonb then raise exception 'no-city order to basic %', j; end if;
+  if not vz_private.vz_tg_unbind_chat(222) then raise exception 'unbind'; end if;
+  perform public.vz_delete_card(k);
+  if exists (select 1 from public.vz_tg where chat_id = 111) then raise exception 'cascade'; end if;
+  perform public.vz_delete_card(k2);
+  delete from public.vz_orders where id in (oid, oid2);
+end $$;
+select 'TG OK';
