@@ -84,10 +84,12 @@
     host.innerHTML = '<section class="glass cab-sec" id="status"><h3>Мой статус</h3>' + statusHtml(card.status) + '</section>' +
       '<a class="cab-feed glass" href="app.html#feed"><svg><use href="#i-feed"/></svg><span><b>Лента заказов</b><small>Заказы клиентов рядом — откликайтесь «Беру»</small></span><em class="cnt" data-feedn' + (feedN ? '' : ' hidden') + '>' + feedN + '</em></a>' +
       '<section class="glass cab-sec" id="vfsec"><h3>Значок «Проверен»</h3><div data-vf>' + verifyHtml() + '</div></section>' +
+      (window.VEZU_STICKER && window.qrcode && card.slug ? '<section class="glass cab-sec" id="stksec"><h3>Наклейка «Закажи эту машину»</h3>' + window.VEZU_STICKER.html() + '</section>' : '') +
       '<section class="glass cab-sec" id="tgsec"><h3><svg class="tg-ic"><use href="#i-tg"/></svg>Уведомления в Telegram</h3><div data-tg><p class="muted">Загружаю…</p></div></section>' +
       (V.reviewsOn() ? '<section class="glass cab-sec" id="reviews"><h3>Отзывы клиентов</h3>' +
       '<button type="button" class="btn btn-grad btn-block" data-ask><svg><use href="#i-star"/></svg>Попросить отзыв</button><div data-myrv><p class="muted">Загружаю…</p></div></section>' : '');
     if (V.reviewsOn()) loadReviews();
+    var stk = host.querySelector('#stksec'); if (stk) window.VEZU_STICKER.bind(stk, function () { return card; });
     loadFeed(); loadTg();
   }
   function verifyHtml() {

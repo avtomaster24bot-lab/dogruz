@@ -403,7 +403,7 @@ new=head('Создать визитку водителя — ВЕЗУ','Бесп
 
 <div id="print-area"></div>
 
-{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/calc.js','js/config.js','js/cloud.js','js/new.js','js/pay.js','js/cab.js','js/pro.js')}</body>
+{SCRIPTS('js/vendor/qrcode.js','js/vendor/inflate.js','js/common.js','js/calc.js','js/config.js','js/cloud.js','js/new.js','js/pay.js','js/sticker.js','js/cab.js','js/pro.js')}</body>
 </html>
 '''
 open('new.html','w').write(new)
