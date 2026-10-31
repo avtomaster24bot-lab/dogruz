@@ -3,7 +3,7 @@
 // vz_verify (public = false), админ видит его по подписанной ссылке на 10 минут. После решения заявка и фото удаляются —
 // на визитке остаются только дата проверки (verified_at) или причина отказа (verify_note).
 // Согласие (галочка verify_v1) обязательно и записывается в журнал vz_consents (kind = 'verify').
-// POST { key, plate, car: "data:image/jpeg;base64,...", consent: "verify_v1", dev? } → { state: "pending" }
+// POST { key, plate, car: "data:image/jpeg;base64,...", consent: "verify_v1" } → { state: "pending" }
 // POST { key, cancel: true }                     → { state: "none" }   (отозвать заявку, фото удаляются)
 // POST { admin, list: true }                     → { items: [...] }    (+ удаляет «осиротевшие» файлы)
 // POST { admin, card, decide: "ok"|"no", note? } → { ok: true }        (заявка и фото удаляются)
@@ -113,10 +113,8 @@ Deno.serve(async (req) => {
   if (up.error) { console.error("upload", up.error); await wipe(card.id); return json({ error: "upload" }, 500, h); }
   const { error: ie } = await db.from("vz_verify_req").insert({ card_id: card.id, plate, car_path: cp });
   if (ie) { console.error("insert", ie); await wipe(card.id); return json({ error: "db" }, 500, h); }
-  // журнал согласий: как у остальных галочек (версия текста, визитка, хеш устройства)
-  const dev = String(body.dev ?? "");
-  const { error: ce } = await db.from("vz_consents").insert({ kind: "verify", version: CONSENT, card_id: card.id,
-    dev_hash: /^[A-Za-z0-9_-]{32,64}$/.test(dev) ? await sha256hex(dev) : "" });
+  // журнал согласий: как у согласия водителя (версия текста, визитка, хеш ключа доступа визитки)
+  const { error: ce } = await db.from("vz_consents").insert({ kind: "verify", version: CONSENT, card_id: card.id, dev_hash: await sha256hex(key) });
   if (ce) { console.error("consent", ce); await wipe(card.id); return json({ error: "db" }, 500, h); }
   await db.from("vz_cards").update({ verify_note: "" }).eq("id", card.id);
   return json({ state: "pending" }, 200, h);

@@ -152,7 +152,7 @@
         if (pl.replace(/[^0-9A-Za-zА-Яа-я]/g, '').length < 4) return V.toast('Укажите госномер');
         vs.disabled = true; vs.textContent = 'Отправляю…';
         return C.shrinkJpeg(fc).then(function (im) {
-          return C.verifyCall({ key: C.key(), plate: pl, car: im, consent: V.CONSENT.verify.v, dev: C.device() });
+          return C.verifyCall({ key: C.key(), plate: pl, car: im, consent: V.CONSENT.verify.v });
         }).then(function () { card.verify_pending = true; card.verify_note = ''; vfRefresh(); V.toast('Отправлено на проверку'); },
           function (er) { vs.disabled = false; vs.textContent = 'Отправить на проверку'; V.toast(er.message); });
       }
