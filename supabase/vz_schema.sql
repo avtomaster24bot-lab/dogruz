@@ -182,6 +182,7 @@ create index if not exists vz_consents_card on public.vz_consents (card_id);
 create index if not exists vz_consents_order on public.vz_consents (order_id);
 alter table public.vz_consents enable row level security;
 revoke all on public.vz_consents from anon, authenticated;
+revoke all on sequence public.vz_consents_id_seq from anon, authenticated;
 
 alter table public.vz_cards   enable row level security;
 alter table public.vz_events  enable row level security;
