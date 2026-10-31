@@ -203,17 +203,23 @@
   });
 
   // ---------- лента водителя ----------
-  var lastFeed = null, myCard = null;
+  var lastFeed = null, myCard = null, feedMeta = null;
+  function proNote() {
+    var m = feedMeta; if (!m || m.pro) return '';
+    return '<a class="pro-note glass" href="new.html#pro"><b>' + (m.later ? 'Ещё ' + m.later + ' ' + V.plural(m.later, 'новый заказ', 'новых заказа', 'новых заказов') + ' — ' + (m.later === 1 ? 'появится' : 'появятся') + ' у вас в течение 10 минут' : 'Новые заказы вы видите через 10 минут после публикации') +
+      '</b><span>С «Про» — сразу, и в Telegram тоже первым. Подключить →</span></a>';
+  }
   function loadFeed(quiet) {
     var box = $('#feedl');
     if (!C.key()) { box.innerHTML = '<div class="empty glass"><h2>Лента — для водителей</h2><p class="muted">Сохраните визитку в облаке ВЕЗУ — и здесь появятся заказы клиентов. Откликайтесь «Беру» со своей ценой.</p><a class="btn btn-grad" href="new.html">Создать визитку</a></div>'; $('#feedst').innerHTML = ''; return; }
     if (!quiet && !lastFeed) box.innerHTML = '<p class="muted">Загружаю заказы…</p>';
     if (!myCard) C.rpc('vz_me', { p_key: C.key() }).then(function (c) { myCard = c; var st = $('#feedst'); if (c && CAB) { st.innerHTML = '<section class="glass cab-sec">' + CAB.statusHtml(c.status) + '</section>'; } }, function () {});
+    C.rpc('vz_feed_meta', { p_key: C.key() }).then(function (m) { feedMeta = m; if (lastFeed) drawFeed(); }, function () {});
     C.rpc('vz_feed', { p_key: C.key() }).then(function (a) { lastFeed = a || []; drawFeed(); seenFeed(); }, function (e) { if (!quiet) box.innerHTML = '<p class="err-msg">' + esc(e.message) + '</p>'; });
   }
   function drawFeed() {
     var a = lastFeed || [], box = $('#feedl');
-    box.innerHTML = a.length ? a.map(function (o) {
+    box.innerHTML = proNote() + (a.length ? a.map(function (o) {
       var tag = o.mine ? '<span class="ost ost-taken">Клиент выбрал вас</span>' : o.personal ? '<span class="ost ost-me">Лично вам</span>' : '<span class="ost">Всем водителям</span>';
       var ml = mapLink(o.calc);
       return '<article class="ord glass' + (o.personal ? ' personal' : '') + (o.mine ? ' mine' : '') + '"><div class="ord-h">' + tag + '<span class="muted">' + esc(ago(o.at)) + (o.responses ? ' · откликов: ' + o.responses : '') + '</span></div>' +
@@ -224,7 +230,7 @@
         (o.my ? '<p class="my-resp">Ваше предложение: ' + (o.my.price ? 'могу за ' + V.fmtNum(o.my.price) + ' ₸' : 'без цены') + (o.my.comment ? ' · ' + esc(o.my.comment) : '') + '</p>' : '') +
         '<div class="resp-b">' + (o.phone ? '<a class="btn btn-wa btn-sm" href="#" data-wa="' + esc(o.phone) + '" data-id="' + o.id + '"><svg><use href="#i-wa"/></svg>WhatsApp</a><a class="btn btn-glass btn-sm" href="tel:+' + esc(o.phone) + '"><svg><use href="#i-phone"/></svg>Звонок</a>' : '') +
         (o.status === 'open' ? '<button type="button" class="btn ' + (o.my ? 'btn-glass' : 'btn-grad') + ' btn-sm" data-take="' + o.id + '">' + (o.my ? 'Изменить цену' : 'Могу за … ₸') + '</button>' : '') + '</div></article>';
-    }).join('') : '<div class="empty glass"><h2>Пока заказов нет</h2><p class="muted">Новые заказы появятся здесь сами — лента обновляется каждые 20 секунд. Поставьте статус «Свободен», чтобы клиенты видели вас первым.</p></div>';
+    }).join('') : '<div class="empty glass"><h2>Пока заказов нет</h2><p class="muted">Новые заказы появятся здесь сами — лента обновляется каждые 20 секунд. Поставьте статус «Свободен», чтобы клиенты видели вас первым.</p></div>');
   }
   $('#feedst').addEventListener('click', function () {});
   if (CAB) CAB.bindStatus($('#feedst'), function (s) { if (myCard) myCard.status = s; });

@@ -157,15 +157,16 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
       <ul class="pro-ul drv-ul">
         <li><svg><use href="#i-check"/></svg>Визитка с WhatsApp, звонком и QR-кодом — бесплатно</li>
         <li><svg><use href="#i-check"/></svg>Своё приложение на телефоне клиента (иконка VEZU)</li>
-        <li><svg><use href="#i-check"/></svg>Заказы из ленты: откликайтесь со своей ценой</li>
-        <li><svg><use href="#i-check"/></svg>С «Про»: фото машины, короткий адрес, место в каталоге, статистика просмотров и звонков</li>
+        <li><svg><use href="#i-check"/></svg>Заказы из ленты: предлагайте свою цену «Могу за X ₸»</li>
+        <li><svg><use href="#i-check"/></svg>Бесплатно: уведомления в Telegram, значок «Проверен», наклейка с QR на машину</li>
+        <li><svg><use href="#i-check"/></svg>С «Про»: новые заказы сразу, фото машины, короткий адрес, каталог, статистика</li>
       </ul>
       <button type="button" class="info-link" data-info="why"><svg><use href="#i-info"/></svg>Почему это удобнее бумажной визитки</button>
       <div class="btns">
         <a class="btn btn-grad" href="new.html">Я водитель — создать визитку<svg><use href="#i-arrow"/></svg></a>
         <a class="btn btn-glass" href="card.html?demo">Пример</a>
       </div>
-      <a class="tlink" href="tarify.html">ВЕЗУ Про — {TRIAL_DAYS} дней бесплатно: короткий адрес, фото, каталог →</a>
+      <a class="tlink" href="tarify.html">ВЕЗУ Про — {TRIAL_DAYS} дней бесплатно: заказы первым, фото, каталог →</a>
     </div>
     <a class="mock" href="card.html?demo" aria-label="Пример визитки водителя" id="mock"></a>
   </section>
@@ -182,14 +183,15 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
       <section class="plan glass">
         <h3>Водителям · Базовая</h3>
         <p class="price">0 ₸<small>навсегда</small></p>
-        <ul><li><svg><use href="#i-check"/></svg><span>Визитка-ссылка и QR-код</span></li><li><svg><use href="#i-check"/></svg><span>Кнопки WhatsApp и «Позвонить»</span></li><li><svg><use href="#i-check"/></svg><span>Русский и казахский</span></li></ul>
+        <ul><li><svg><use href="#i-check"/></svg><span>Визитка-ссылка и QR-код, WhatsApp и «Позвонить»</span></li><li><svg><use href="#i-check"/></svg><span>Лента заказов и предложения «Могу за X ₸» (новые заказы — через 10 минут)</span></li><li><svg><use href="#i-check"/></svg><span>Уведомления в Telegram (через 10 минут)</span></li><li><svg><use href="#i-check"/></svg><span>Значок «Проверен» и наклейка на машину</span></li><li><svg><use href="#i-check"/></svg><span>Русский и казахский</span></li></ul>
         <a class="btn btn-glass btn-block" href="new.html">Создать визитку</a>
       </section>
       <section class="plan glass glow pro">
         <span class="tag-soon">{TRIAL_DAYS} дней бесплатно</span>
         <h3>Водителям · Про</h3>
         <p class="price">{FMT(PRO_PRICE)} ₸<small>в месяц · первые {TRIAL_DAYS} дней бесплатно</small></p>
-        <ul><li><svg><use href="#i-check"/></svg><span>Короткий адрес и фото машины</span></li><li><svg><use href="#i-check"/></svg><span>Место в каталоге водителей</span></li><li><svg><use href="#i-check"/></svg><span>Статистика: просмотры, WhatsApp, звонки</span></li></ul>
+        <ul><li><svg><use href="#i-check"/></svg><span>Новые заказы в ленте и в Telegram — <b>сразу</b>, раньше Базовой</span></li><li><svg><use href="#i-check"/></svg><span>Фото машины на визитке и в каталоге</span></li><li><svg><use href="#i-check"/></svg><span>Короткий адрес: …/dogruz/ваше-имя</span></li><li><svg><use href="#i-check"/></svg><span>Место в каталоге водителей</span></li><li><svg><use href="#i-check"/></svg><span>Статистика: просмотры, WhatsApp, звонки</span></li><li><svg><use href="#i-check"/></svg><span>Без надписи «Сделано на ВЕЗУ»</span></li></ul>
+        <p class="fine">Оплаченные и бессрочные подписки «Про» действуют как прежде.</p>
         <a class="btn btn-glass btn-block" href="tarify.html">Подробнее о тарифах</a>
       </section>
     </div>
@@ -434,15 +436,16 @@ tar=head('Тарифы и ВЕЗУ Про — визитки водителей'
     <section class="plan glass">
       <h2>Базовая</h2>
       <p class="price">0 ₸<small>навсегда</small></p>
-      <ul>{li('Визитка-ссылка и QR-код')}{li('Кнопки WhatsApp и «Позвонить»')}{li('Печать визиток и наклейки сами')}{li('Русский и казахский')}</ul>
+      <ul>{li('Визитка-ссылка и QR-код, WhatsApp и «Позвонить»')}{li('Лента заказов и предложения «Могу за X ₸» (новые заказы — через 10 минут)')}{li('Уведомления в Telegram (через 10 минут)')}{li('Значок «Проверен» и наклейка на машину')}{li('Русский и казахский')}{li('Печать визиток сами')}</ul>
       <a class="btn btn-glass btn-block" href="new.html">Создать визитку</a>
     </section>
     <section class="plan glass glow pro">
-      <span class="tag-soon">7 дней бесплатно</span>
+      <span class="tag-soon">{TRIAL_DAYS} дней бесплатно</span>
       <h2>Про</h2>
-      <p class="price">1 500 ₸<small>в месяц · первые 7 дней бесплатно</small></p>
-      <ul>{li('Короткий адрес: …/dogruz/ваше-имя')}{li('Фото видят все клиенты')}{li('Место в каталоге водителей')}{li('Статистика: просмотры, WhatsApp, звонки')}{li('Без надписи «Сделано на ВЕЗУ»')}</ul>
-      <a class="btn btn-grad btn-block" href="new.html">Попробовать 7 дней бесплатно</a>
+      <p class="price">{FMT(PRO_PRICE)} ₸<small>в месяц · первые {TRIAL_DAYS} дней бесплатно</small></p>
+      <ul>{li('Новые заказы в ленте и в Telegram — <b>сразу</b>, раньше Базовой')}{li('Фото машины на визитке и в каталоге')}{li('Короткий адрес: …/dogruz/ваше-имя')}{li('Место в каталоге водителей')}{li('Статистика: просмотры, WhatsApp, звонки')}{li('Без надписи «Сделано на ВЕЗУ»')}</ul>
+      <p class="fine">Оплаченные и бессрочные подписки «Про» действуют как прежде — ничего делать не нужно.</p>
+      <a class="btn btn-grad btn-block" href="new.html">Попробовать {TRIAL_DAYS} дней бесплатно</a>
       <button type="button" class="btn btn-wa btn-block" id="payPro"><svg><use href="#i-wa"/></svg>Оплатить через Kaspi</button>
     </section>
     <section class="plan glass">

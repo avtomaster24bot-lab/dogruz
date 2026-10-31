@@ -269,3 +269,29 @@ begin
   delete from public.vz_orders where id in (oid, oid2);
 end $$;
 select 'TG OK';
+
+-- v15 приоритет Про в ленте + v13 значок + v14 тарифы
+do $$ declare k text := 'prkey_' || repeat('a', 30); k2 text := 'prkey_' || repeat('b', 30); c1 uuid; c2 uuid; oid uuid; f jsonb; m jsonb;
+begin
+  perform public.vz_save_card(k, '{"n":"Про","p":"77000001241","t":"Алматы"}', 'pr-test-a', 'gazel', true, null, 'driver_v1');
+  perform public.vz_save_card(k2, '{"n":"Баз","p":"77000001242","t":"Алматы"}', 'pr-test-b', 'gazel', true, null, 'driver_v1');
+  select id into c1 from public.vz_cards where slug = 'pr-test-a'; select id into c2 from public.vz_cards where slug = 'pr-test-b';
+  update public.vz_cards set pro_until = now() + interval '10 days' where id = c1;
+  update public.vz_cards set pro_until = null where id = c2;
+  oid := public.vz_order_create('odprtest000000000000000000000000000000000000001', '{"what":"тест","from":"А","phone":"77000000099"}', null, 'order_v1');
+  f := public.vz_feed(k);  if not exists (select 1 from jsonb_array_elements(f) e where (e->>'id')::uuid = oid) then raise exception 'pro must see new order'; end if;
+  f := public.vz_feed(k2); if exists (select 1 from jsonb_array_elements(f) e where (e->>'id')::uuid = oid) then raise exception 'basic must not see new order yet'; end if;
+  m := public.vz_feed_meta(k2); if (m->>'later')::int < 1 or (m->>'pro')::boolean then raise exception 'meta %', m; end if;
+  begin perform public.vz_order_respond(k2, oid, 5000, ''); raise exception 'basic respond allowed'; exception when others then if sqlerrm = 'basic respond allowed' then raise; end if; end;
+  update public.vz_orders set created_at = now() - interval '11 minutes' where id = oid;
+  f := public.vz_feed(k2); if not exists (select 1 from jsonb_array_elements(f) e where (e->>'id')::uuid = oid) then raise exception 'basic must see order after 10 min'; end if;
+  -- значок
+  update public.vz_cards set verified_at = now() where id = c1;
+  if not (vz_private.vz_pub((select c from public.vz_cards c where id = c1))->>'verified')::boolean then raise exception 'verified flag'; end if;
+  -- тарифы: формат
+  begin perform vz_private.vz_admin_set_rates('nope', '1,2,3,,,'); raise exception 'non-admin rates'; exception when others then if sqlerrm = 'non-admin rates' then raise; end if; end;
+  if public.vz_calc_rates() is null then raise exception 'rates null'; end if;
+  perform public.vz_delete_card(k); perform public.vz_delete_card(k2);
+  delete from public.vz_orders where id = oid;
+end $$;
+select 'PRIO OK';

@@ -930,7 +930,9 @@ begin
     left join public.vz_order_targets t on t.order_id = o.id and t.card_id = c.id
     left join public.vz_order_responses r on r.order_id = o.id and r.card_id = c.id
     where o.dev_hash not in (select d.dev_hash from public.vz_devices d where d.blocked)
-      and ((o.status = 'open' and o.expires_at > now() and (o.scope = 'all' or t.card_id is not null))
+      and ((o.status = 'open' and o.expires_at > now() and (o.scope = 'all' or t.card_id is not null)
+            -- приоритет Про: новые общие заказы Про видит сразу, Базовая — через 10 минут (личные заказы — сразу всем)
+            and (t.card_id is not null or coalesce(c.pro_until > now(), false) or o.created_at <= now() - interval '10 minutes'))
         or (o.status = 'taken' and o.taken_card = c.id and o.created_at > now() - interval '3 days'))
     order by o.created_at desc limit 100) s);
 end $$;
@@ -944,6 +946,8 @@ begin
   select * into o from public.vz_orders where id = p_id;
   if o.id is null or o.status <> 'open' or o.expires_at < now() then raise exception 'Заказ уже закрыт'; end if;
   if o.scope = 'picked' and not exists (select 1 from public.vz_order_targets where order_id = o.id and card_id = c.id) then raise exception 'Заказ адресован другим водителям'; end if;
+  if o.scope = 'all' and not coalesce(c.pro_until > now(), false) and o.created_at > now() - interval '10 minutes' then
+    raise exception 'Этот заказ появится в вашей ленте через несколько минут (с «Про» — сразу)'; end if;
   if vz_private.vz_review_flag(cm) in ('ссылка', 'мат') then raise exception 'В комментарии нельзя: ссылки, мат'; end if;
   insert into public.vz_order_responses (order_id, card_id, price, comment) values (o.id, c.id, nullif(greatest(p_price, 0), 0), cm)
   on conflict (order_id, card_id) do update set price = excluded.price, comment = excluded.comment, created_at = now();
@@ -1420,3 +1424,18 @@ create or replace function public.vz_admin_set_rates(p_admin text, p_rates text)
 language sql security invoker set search_path = '' as $$ select vz_private.vz_admin_set_rates(p_admin, p_rates) $$;
 revoke all on function vz_private.vz_calc_rates(), vz_private.vz_admin_set_rates(text, text), public.vz_calc_rates(), public.vz_admin_set_rates(text, text) from public, anon, authenticated;
 grant execute on function vz_private.vz_calc_rates(), vz_private.vz_admin_set_rates(text, text), public.vz_calc_rates(), public.vz_admin_set_rates(text, text) to anon, authenticated;
+
+-- ---------- v15: приоритет Про в ленте ----------
+-- Сколько новых общих заказов водитель Базовой увидит позже (Про видит их сразу).
+create or replace function vz_private.vz_feed_meta(p_key text) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object('pro', coalesce(c.pro_until > now(), false),
+    'later', case when coalesce(c.pro_until > now(), false) then 0 else (select count(*) from public.vz_orders o
+      where o.status = 'open' and o.scope = 'all' and o.expires_at > now() and o.created_at > now() - interval '10 minutes'
+        and o.dev_hash not in (select d.dev_hash from public.vz_devices d where d.blocked)) end)
+  from public.vz_cards c where c.key_hash = vz_private.vz_hash(p_key) and not c.is_blocked;
+$$;
+create or replace function public.vz_feed_meta(p_key text) returns jsonb
+language sql security invoker set search_path = '' as $$ select vz_private.vz_feed_meta(p_key) $$;
+revoke all on function vz_private.vz_feed_meta(text), public.vz_feed_meta(text) from public, anon, authenticated;
+grant execute on function vz_private.vz_feed_meta(text), public.vz_feed_meta(text) to anon, authenticated;
