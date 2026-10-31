@@ -77,11 +77,12 @@
   }
   var orderConsent = V.consentGate(form, 'order', $('#osend'));
   $('#tgl').addEventListener('change', function (e) { if (e.target.type === 'checkbox') { if (e.target.checked) picked[e.target.value] = 1; else delete picked[e.target.value]; } });
+  function cargoTag(o) { return o.cargo && V.cargoLabel(o.cargo) && o.what ? '<span class="o-cargo">' + esc(V.cargoLabel(o.cargo)) + '</span>' : ''; }
   $('#osend').addEventListener('click', function () {
     var err = $('#oerr'); err.hidden = true;
     var g = function (n) { var i = form.querySelector('[name=' + n + ']'); return i ? i.value.trim() : ''; };
     var phone = V.normPhone(g('cp'));
-    var o = { what: g('what'), from: g('from'), to: g('to'), when: g('when'), note: g('note'), name: g('cn'), phone: phone || '' };
+    var o = { what: g('what'), cargo: g('cargo'), from: g('from'), to: g('to'), when: g('when'), note: g('note'), name: g('cn'), phone: phone || '' };
     var at = g('at'); if (at) { var d = new Date(at); if (!isNaN(d)) o.when_at = d.toISOString(); }
     var c = form._calc ? JSON.parse(JSON.stringify(form._calc)) : {}; delete c.how;
     var pr = +g('price').replace(/\D/g, ''); if (pr) c.price = pr;
@@ -97,7 +98,8 @@
     if (!orderConsent()) return fail('Поставьте галочку согласия на обработку данных.');
     C.rpc('vz_order_create', { p_dev: dev(), p_order: o, p_slugs: slugs, p_consent: orderConsent() }).then(function () {
       b.disabled = false; b.innerHTML = '<svg><use href="#i-feed"/></svg>Отправить водителям';
-      ['what', 'from', 'to', 'note', 'price', 'at'].forEach(function (n) { var i = form.querySelector('[name=' + n + ']'); if (i) i.value = ''; });
+      ['what', 'cargo', 'from', 'to', 'note', 'price', 'at'].forEach(function (n) { var i = form.querySelector('[name=' + n + ']'); if (i) i.value = ''; });
+      form.querySelectorAll('[data-cargo]').forEach(function (x) { x.classList.remove('on'); x.setAttribute('aria-pressed', 'false'); });
       var cb = form.querySelector('[data-consent=order]'); cb.checked = false; cb.dispatchEvent(new Event('change'));
       if (form._calcReset) form._calcReset();
       location.hash = '#orders';
@@ -165,7 +167,7 @@
     box.innerHTML = a.length ? a.map(function (o) {
       var s = stateOf(o);
       return '<article class="ord glass st-o-' + s + '"><div class="ord-h"><span class="ost ost-' + s + '">' + LABEL[s] + (s === 'resp' ? ' · ' + o.responses.length : '') + '</span><span class="muted">' + esc(ago(o.at)) + '</span></div>' +
-        '<h3>' + esc(o.what || 'Перевозка') + '</h3>' + route(o) + facts(o) + (est(o.calc) ? '<p class="o-est">' + est(o.calc) + '</p>' : '') +
+        '<h3>' + cargoTag(o) + esc(o.what || V.cargoLabel(o.cargo) || 'Перевозка') + '</h3>' + route(o) + facts(o) + (est(o.calc) ? '<p class="o-est">' + est(o.calc) + '</p>' : '') +
         (o.scope === 'picked' ? '<p class="fine">Только для: ' + esc((o.targets || []).join(', ')) + '</p>' : '') +
         (o.responses.length ? o.responses.map(function (r) { return respHtml(o, r); }).join('') : o.state === 'open' ? '<p class="muted wait">Ждём отклики водителей… Страница обновляется сама.</p>' : '') +
         (V.reviewsOn() && o.state === 'taken' && !o.review_issued ? '<button type="button" class="btn btn-glass btn-block" data-rev="' + o.id + '"><svg><use href="#i-star"/></svg>Оставить отзыв водителю</button>' : '') +
@@ -202,7 +204,7 @@
       var tag = o.mine ? '<span class="ost ost-taken">Клиент выбрал вас</span>' : o.personal ? '<span class="ost ost-me">Лично вам</span>' : '<span class="ost">Всем водителям</span>';
       var ml = mapLink(o.calc);
       return '<article class="ord glass' + (o.personal ? ' personal' : '') + (o.mine ? ' mine' : '') + '"><div class="ord-h">' + tag + '<span class="muted">' + esc(ago(o.at)) + (o.responses ? ' · откликов: ' + o.responses : '') + '</span></div>' +
-        '<h3>' + esc(o.what || 'Перевозка') + '</h3>' + route(o) + facts(o) + (est(o.calc) ? '<p class="o-est">Оценка: ' + est(o.calc) + '</p>' : '') +
+        '<h3>' + cargoTag(o) + esc(o.what || V.cargoLabel(o.cargo) || 'Перевозка') + '</h3>' + route(o) + facts(o) + (est(o.calc) ? '<p class="o-est">Оценка: ' + est(o.calc) + '</p>' : '') +
         (o.note ? '<p class="resp-c">' + esc(o.note) + '</p>' : '') +
         (o.phone ? '<p class="fine">Клиент: ' + esc(o.name || 'без имени') + ' · +' + esc(o.phone) + '</p>' : '<p class="fine">' + (o.my ? 'Телефон появится, когда клиент выберет вас. Клиент видит ваш отклик и может написать вам в WhatsApp.' : 'Телефон клиента увидит только водитель, которого клиент выберет.') + '</p>') +
         (ml ? '<a class="lnk" href="' + esc(ml) + '" target="_blank" rel="noopener">Маршрут на карте</a>' : '') +

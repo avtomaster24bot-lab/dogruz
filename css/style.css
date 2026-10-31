@@ -672,3 +672,24 @@ body:has(.app) .share-fab{display:none}
 .sheet-done .done-t{text-align:center;color:var(--muted);margin:0 0 14px}
 .done-share{display:grid;gap:8px;padding:16px;border-radius:22px;margin-bottom:12px;border:1px solid rgba(255,143,112,.45);background:linear-gradient(115deg,rgba(255,79,216,.14),rgba(255,215,106,.10))}.done-share b{font-size:18px}.done-share span{color:var(--muted);font-size:14px;line-height:1.45}
 @media (prefers-reduced-motion:reduce){.btn-share,.btn-share::after,.share-band em,.share-fab,.bnav .bn-share i{animation:none}}
+/* ---------- главная: разделы, якоря, доверие, цены, тип груза ---------- */
+.top .anchors{display:flex;height:auto;justify-content:flex-start;gap:6px;overflow-x:auto;scrollbar-width:none;padding-top:0;padding-bottom:10px;margin-top:-6px}
+.anchors::-webkit-scrollbar{display:none}
+.anchors a{flex:none;padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);text-decoration:none;font-weight:700;font-size:12.5px;line-height:1}
+.anchors a.go{background:var(--grad);color:#0b0b1f;border-color:transparent}
+@media (display-mode:standalone){.top .anchors{display:none}}
+#how,#drivers,#prices,#order{scroll-margin-top:118px}
+.trust{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:0;margin:14px 0 6px}
+.trust li{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--glass);font-size:13px;font-weight:700}
+.trust svg{width:16px;height:16px;color:var(--c)}.trust li:nth-child(2) svg{color:var(--wa)}.trust li:nth-child(3) svg{color:var(--o)}
+.sec-h{font-size:clamp(24px,5vw,36px);letter-spacing:-.03em;font-weight:850;margin:26px 0 12px}
+.how.how3{grid-template-columns:1fr;gap:10px;margin:0 0 18px}
+.how.how3 li{position:relative;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:12px;align-items:center;text-align:left;padding:14px 16px;font-size:15px}
+.how.how3 li i{position:absolute;top:10px;right:14px;font-style:normal;font-weight:850;font-size:13px;color:var(--dim)}
+.how.how3 li svg{grid-row:1/3;width:30px;height:30px;margin:0}
+.how.how3 li span{font-size:13.5px;line-height:1.4}
+@media (min-width:760px){.how.how3{grid-template-columns:repeat(3,1fr)}}
+.drv-ul{margin:10px 0 14px}
+.prices-sec{margin-bottom:40px}.prices-sec .plan h3{margin:0 0 4px;font-size:18px}
+.cargo-f{margin-bottom:4px}.cargo-h{display:block;font-size:13px;font-weight:700;color:var(--muted);margin:0 0 6px 4px}
+.o-cargo{display:inline-block;margin:0 8px 4px 0;padding:3px 9px;border-radius:999px;background:rgba(79,209,255,.14);color:var(--c);font-size:12px;font-weight:800;vertical-align:middle}

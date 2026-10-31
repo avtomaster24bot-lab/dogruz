@@ -224,3 +224,14 @@ end $$;
 select 'retention second run', vz_private.vz_retention() - 'at';
 delete from public.vz_orders where dev_hash = 'rt-test';
 select 'RETENTION OK';
+
+-- v11 cargo
+do $$ declare oid uuid; j jsonb; begin
+  oid := public.vz_order_create('odcargotest00000000000000000000000000000000000001', '{"what":"тест","from":"А","phone":"77000000077","cargo":"trash"}', null, 'order_v1');
+  select vz_private.vz_order_pub(o, false) into j from public.vz_orders o where id = oid;
+  if j->>'cargo' <> 'trash' then raise exception 'cargo %', j; end if;
+  oid := public.vz_order_create('odcargotest00000000000000000000000000000000000002', '{"what":"тест","from":"А","phone":"77000000077","cargo":"hack"}', null, 'order_v1');
+  if (select cargo from public.vz_orders where id = oid) <> '' then raise exception 'cargo whitelist'; end if;
+  delete from public.vz_orders where dev_hash in (vz_private.vz_hash('odcargotest00000000000000000000000000000000000001'), vz_private.vz_hash('odcargotest00000000000000000000000000000000000002'));
+end $$;
+select 'CARGO OK';

@@ -56,13 +56,19 @@ ORDER_FIELDS='''    <label class="fld"><span class="sr">Что везём</span>
       <label class="fld"><span class="sr" data-i18n="price">Ваша цена</span><input class="inp" name="price" inputmode="numeric" placeholder="Ваша цена" data-i18n-ph="price"><b class="suffix">₸</b></label>
     </div>
 '''
-QCHIPS='''    <div class="qchips" aria-label="Что везём">
-      <button type="button" class="qchip" data-fill="what" data-v="Переезд" data-i18n="q_move">Переезд</button>
-      <button type="button" class="qchip" data-fill="what" data-v="Стройматериалы" data-i18n="q_build">Стройматериалы</button>
-      <button type="button" class="qchip" data-fill="what" data-v="Мебель" data-i18n="q_furn">Мебель</button>
-      <button type="button" class="qchip" data-fill="what" data-v="Вывоз мусора" data-i18n="q_trash">Вывоз мусора</button>
-    </div>
+QCHIPS='''    <div class="fld cargo-f"><span class="cargo-h">Тип груза</span>
+    <div class="qchips" role="group" aria-label="Тип груза"><input type="hidden" name="cargo" value="">
+      <button type="button" class="qchip" data-cargo="move" aria-pressed="false">Переезд / мебель</button>
+      <button type="button" class="qchip" data-cargo="appliance" aria-pressed="false">Бытовая техника</button>
+      <button type="button" class="qchip" data-cargo="build" aria-pressed="false">Стройматериалы</button>
+      <button type="button" class="qchip" data-cargo="trash" aria-pressed="false">Вывоз мусора</button>
+      <button type="button" class="qchip" data-cargo="other" aria-pressed="false">Другое</button>
+    </div></div>
 '''
+import re as _re
+_cfg=open('js/config.js').read()
+PRO_PRICE=int(_re.search(r'PRO_PRICE:\s*(\d+)',_cfg).group(1)); TRIAL_DAYS=int(_re.search(r'TRIAL_DAYS:\s*(\d+)',_cfg).group(1))
+FMT=lambda n: f'{n:,}'.replace(',', '\u00a0')
 BNAV='''<nav class="bnav" aria-label="Приложение ВЕЗУ">
   <a href="{p}#order"><svg><use href="#i-box"/></svg><span>Заказ</span></a>
   <a href="{p}#favs"><svg><use href="#i-fav"/></svg><span>Мои водители</span></a>
@@ -87,6 +93,7 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
     {LOGO('грузы до 3 тонн')}
     <nav class="topnav"><a href="catalog.html">Водители</a><a href="tarify.html">Тарифы</a><a class="btn btn-glass btn-sm" href="new.html">Я водитель</a></nav>
   </div>
+  <nav class="wrap anchors" aria-label="Разделы страницы"><a href="#how">Как работает</a><a href="#drivers">Водителям</a><a href="#prices">Цены</a><a href="#order" class="go">Заказать</a></nav>
 </header>
 
 <main class="wrap">
@@ -100,11 +107,20 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
     </div>
   </section>
 
-  <ol class="how" aria-label="Как это работает">
-    <li><svg><use href="#i-box"/></svg><b>Опишите груз</b><span>что, откуда, куда</span></li>
-    <li><svg><use href="#i-wa"/></svg><b>Отправьте в WhatsApp</b><span>одним нажатием</span></li>
-    <li><svg><use href="#i-hand"/></svg><b>Договоритесь</b><span>с водителем напрямую</span></li>
-  </ol>
+  <ul class="trust" aria-label="Почему ВЕЗУ">
+    <li><svg><use href="#i-hand"/></svg>Без посредников</li>
+    <li><svg><use href="#i-wa"/></svg>Прямой контакт</li>
+    <li><svg><use href="#i-check"/></svg>Без комиссий</li>
+  </ul>
+
+  <section class="how-sec" id="how">
+    <h2 class="sec-h">Как это <span class="grad-text">работает</span></h2>
+    <ol class="how how3">
+      <li><i>1</i><svg><use href="#i-box"/></svg><b>Опишите груз</b><span>Тип груза, что везти, откуда и куда. Можно указать свою цену — калькулятор подскажет примерную.</span></li>
+      <li><i>2</i><svg><use href="#i-feed"/></svg><b>Отправьте водителям</b><span>В ленту всем свободным водителям, только избранным — или сразу в WhatsApp ВЕЗУ.</span></li>
+      <li><i>3</i><svg><use href="#i-wa"/></svg><b>Договоритесь напрямую</b><span>Водители откликаются со своей ценой. Вы выбираете и пишете ему в WhatsApp — без посредников.</span></li>
+    </ol>
+  </section>
 
   <section class="home-grid">
     <form class="order glass glow f" id="order" novalidate>
@@ -118,26 +134,57 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
     </form>
 
     <div class="svc4" aria-label="Что возим">
-      <button type="button" data-svc="Переезд"><img src="img/s-move.webp" alt="" width="320" height="320" loading="lazy" decoding="async"><span>Переезды</span></button>
-      <button type="button" data-svc="Мебель"><img src="img/s-furniture.webp" alt="" width="320" height="320" loading="lazy" decoding="async"><span>Мебель</span></button>
-      <button type="button" data-svc="Стройматериалы"><img src="img/s-build.webp" alt="" width="320" height="320" loading="lazy" decoding="async"><span>Стройка</span></button>
-      <button type="button" data-svc="Вывоз мусора"><img src="img/s-trash.webp" alt="" width="320" height="320" loading="lazy" decoding="async"><span>Вывоз мусора</span></button>
+      <button type="button" data-svc="move"><img src="img/s-move.webp" alt="" width="320" height="320" loading="lazy" decoding="async"><span>Переезды</span></button>
+      <button type="button" data-svc="move" data-what="Мебель"><img src="img/s-furniture.webp" alt="" width="320" height="320" loading="lazy" decoding="async"><span>Мебель</span></button>
+      <button type="button" data-svc="build"><img src="img/s-build.webp" alt="" width="320" height="320" loading="lazy" decoding="async"><span>Стройка</span></button>
+      <button type="button" data-svc="trash"><img src="img/s-trash.webp" alt="" width="320" height="320" loading="lazy" decoding="async"><span>Вывоз мусора</span></button>
     </div>
   </section>
 
   <section class="drivers glass glow" id="drivers">
     <div>
       <span class="badge"><i></i>Для водителей · бесплатно</span>
-      <h2>Ваша визитка <span class="grad-text">за 1 минуту</span></h2>
+      <h2>Водителям: визитка <span class="grad-text">за 1 минуту</span></h2>
       <p class="muted">Ссылка и QR-код — клиенты пишут вам в WhatsApp напрямую, без комиссий.</p>
+      <ul class="pro-ul drv-ul">
+        <li><svg><use href="#i-check"/></svg>Визитка с WhatsApp, звонком и QR-кодом — бесплатно</li>
+        <li><svg><use href="#i-check"/></svg>Своё приложение на телефоне клиента (иконка VEZU)</li>
+        <li><svg><use href="#i-check"/></svg>Заказы из ленты: откликайтесь со своей ценой</li>
+        <li><svg><use href="#i-check"/></svg>С «Про»: фото машины, короткий адрес, место в каталоге, статистика просмотров и звонков</li>
+      </ul>
       <button type="button" class="info-link" data-info="why"><svg><use href="#i-info"/></svg>Почему это удобнее бумажной визитки</button>
       <div class="btns">
-        <a class="btn btn-grad" href="new.html">Создать визитку<svg><use href="#i-arrow"/></svg></a>
+        <a class="btn btn-grad" href="new.html">Я водитель — создать визитку<svg><use href="#i-arrow"/></svg></a>
         <a class="btn btn-glass" href="card.html?demo">Пример</a>
       </div>
-      <a class="tlink" href="tarify.html">ВЕЗУ Про — 7 дней бесплатно: короткий адрес, фото, каталог →</a>
+      <a class="tlink" href="tarify.html">ВЕЗУ Про — {TRIAL_DAYS} дней бесплатно: короткий адрес, фото, каталог →</a>
     </div>
     <a class="mock" href="card.html?demo" aria-label="Пример визитки водителя" id="mock"></a>
+  </section>
+
+  <section class="prices-sec" id="prices">
+    <h2 class="sec-h">Цены</h2>
+    <div class="plans">
+      <section class="plan glass">
+        <h3>Клиентам</h3>
+        <p class="price">0 ₸<small>заказ бесплатно</small></p>
+        <ul><li><svg><use href="#i-check"/></svg><span>Никаких комиссий и наценок ВЕЗУ</span></li><li><svg><use href="#i-check"/></svg><span>Цену договариваете напрямую с водителем</span></li><li><svg><use href="#i-check"/></svg><span>Оплата водителю — как договоритесь</span></li></ul>
+        <a class="btn btn-grad btn-block" href="#order">Заказать</a>
+      </section>
+      <section class="plan glass">
+        <h3>Водителям · Базовая</h3>
+        <p class="price">0 ₸<small>навсегда</small></p>
+        <ul><li><svg><use href="#i-check"/></svg><span>Визитка-ссылка и QR-код</span></li><li><svg><use href="#i-check"/></svg><span>Кнопки WhatsApp и «Позвонить»</span></li><li><svg><use href="#i-check"/></svg><span>Русский и казахский</span></li></ul>
+        <a class="btn btn-glass btn-block" href="new.html">Создать визитку</a>
+      </section>
+      <section class="plan glass glow pro">
+        <span class="tag-soon">{TRIAL_DAYS} дней бесплатно</span>
+        <h3>Водителям · Про</h3>
+        <p class="price">{FMT(PRO_PRICE)} ₸<small>в месяц · первые {TRIAL_DAYS} дней бесплатно</small></p>
+        <ul><li><svg><use href="#i-check"/></svg><span>Короткий адрес и фото машины</span></li><li><svg><use href="#i-check"/></svg><span>Место в каталоге водителей</span></li><li><svg><use href="#i-check"/></svg><span>Статистика: просмотры, WhatsApp, звонки</span></li></ul>
+        <a class="btn btn-glass btn-block" href="tarify.html">Подробнее о тарифах</a>
+      </section>
+    </div>
   </section>
 </main>
 {FOOT}
@@ -148,8 +195,9 @@ index=head('ВЕЗУ — перевезём что угодно по лучше�
   V.bindOrderForm(form, function () {{ return V.SITE_PHONE; }});
   document.querySelectorAll('[data-svc]').forEach(function (b) {{
     b.addEventListener('click', function () {{
-      var w = form.querySelector('[name=what]'); w.value = b.dataset.svc;
-      form.querySelectorAll('[data-fill]').forEach(function (x) {{ x.classList.toggle('on', x.dataset.v === b.dataset.svc); }});
+      var cg = form.querySelector('input[name=cargo]'), chip = form.querySelector('[data-cargo="' + b.dataset.svc + '"]');
+      if (chip && cg.value !== b.dataset.svc) chip.click();
+      var w = form.querySelector('[name=what]'); if (b.dataset.what && !w.value) w.value = b.dataset.what;
       form.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
       setTimeout(function () {{ form.querySelector('[name=from]').focus({{ preventScroll: true }}); }}, 400);
     }});

@@ -757,6 +757,8 @@ create table if not exists public.vz_orders (
   expires_at timestamptz not null default now() + interval '24 hours'
 );
 create index if not exists vz_orders_dev on public.vz_orders (dev_hash, created_at desc);
+-- v11: тип груза (необязательный)
+alter table public.vz_orders add column if not exists cargo text not null default '' check (cargo in ('', 'move', 'appliance', 'build', 'trash', 'other'));
 create index if not exists vz_orders_open on public.vz_orders (status, expires_at) where status = 'open';
 create index if not exists vz_orders_taken on public.vz_orders (taken_card);
 create table if not exists public.vz_order_targets (
@@ -790,7 +792,7 @@ $$;
 create or replace function vz_private.vz_order_pub(o public.vz_orders, show_phone boolean) returns jsonb
 language sql stable set search_path = '' as $$
   select jsonb_build_object('id', o.id, 'what', o.what, 'from', o.from_addr, 'to', o.to_addr, 'when', o.when_text, 'when_at', o.when_at,
-    'calc', o.calc, 'note', o.note, 'name', case when show_phone then o.name end, 'scope', o.scope, 'status', o.status, 'at', o.created_at, 'expires_at', o.expires_at,
+    'calc', o.calc, 'cargo', o.cargo, 'note', o.note, 'name', case when show_phone then o.name end, 'scope', o.scope, 'status', o.status, 'at', o.created_at, 'expires_at', o.expires_at,
     'phone', case when show_phone then o.phone end);
 $$;
 
@@ -806,7 +808,7 @@ begin
   if length(ph) = 11 and ph ~ '^8' then ph := '7' || substr(ph, 2); end if;
   if length(ph) = 10 then ph := '7' || ph; end if;
   if ph !~ '^7[0-9]{10}$' then raise exception 'Укажите телефон для связи'; end if;
-  if btrim(coalesce(o->>'what', '') || coalesce(o->>'from', '') || coalesce(o->>'to', '')) = '' then raise exception 'Напишите, что везём и откуда'; end if;
+  if btrim(coalesce(o->>'what', '') || coalesce(o->>'from', '') || coalesce(o->>'to', '')) = '' and coalesce(o->>'cargo', '') = '' then raise exception 'Напишите, что везём и откуда'; end if;
   if vz_private.vz_review_flag(concat_ws(' ', o->>'what', o->>'from', o->>'to', o->>'note', o->>'name', o->>'when')) in ('ссылка', 'мат') then
     raise exception 'Уберите из заказа ссылки и нецензурные слова';
   end if;
@@ -823,12 +825,13 @@ begin
     c := c - 'a' - 'b' || coalesce(case when c ? 'a' then jsonb_build_object('a', jsonb_build_object('lat', c->'a'->'lat', 'lon', c->'a'->'lon')) end, '{}')
                     || coalesce(case when c ? 'b' then jsonb_build_object('b', jsonb_build_object('lat', c->'b'->'lat', 'lon', c->'b'->'lon')) end, '{}');
   end if;
-  insert into public.vz_orders (dev_hash, what, from_addr, to_addr, when_text, when_at, calc, note, name, phone, scope, ip_hash, expires_at)
+  insert into public.vz_orders (dev_hash, what, from_addr, to_addr, when_text, when_at, calc, note, name, phone, scope, ip_hash, expires_at, cargo)
   values (h, left(btrim(coalesce(o->>'what', '')), 120), left(btrim(coalesce(o->>'from', '')), 120), left(btrim(coalesce(o->>'to', '')), 120),
     left(btrim(coalesce(o->>'when', '')), 40), wat, c, left(btrim(coalesce(o->>'note', '')), 300),
     left(btrim(split_part(regexp_replace(coalesce(o->>'name', ''), '[^[:alpha:] -]', '', 'g'), ' ', 1)), 30), ph,
     case when coalesce(array_length(p_slugs, 1), 0) > 0 then 'picked' else 'all' end, ip,
-    case when wat is not null and wat > now() + interval '22 hours' then wat + interval '2 hours' else now() + interval '24 hours' end)
+    case when wat is not null and wat > now() + interval '22 hours' then wat + interval '2 hours' else now() + interval '24 hours' end,
+    case when o->>'cargo' in ('move', 'appliance', 'build', 'trash', 'other') then o->>'cargo' else '' end)
   returning id into oid;
   if coalesce(array_length(p_slugs, 1), 0) > 0 then
     insert into public.vz_order_targets (order_id, card_id)

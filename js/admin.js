@@ -102,7 +102,7 @@
   function orders() {
     call('vz_admin_orders').then(function (l) {
       document.getElementById('ords').innerHTML = '<h3>Заказы за 30 дней (' + l.length + ')</h3>' + (l.length ? l.slice(0, 60).map(function (o) {
-        return '<article class="adm-row glass" data-ord="' + o.id + '"><div class="adm-main"><b>' + esc(o.what || 'Перевозка') + '</b> · <span class="ost ost-' + o.state + '">' + OST[o.state] + '</span> · <span class="muted">' + ago(o.at) + '</span><br>' +
+        return '<article class="adm-row glass" data-ord="' + o.id + '"><div class="adm-main"><b>' + (o.cargo && V.cargoLabel(o.cargo) ? '[' + esc(V.cargoLabel(o.cargo)) + '] ' : '') + esc(o.what || 'Перевозка') + '</b> · <span class="ost ost-' + o.state + '">' + OST[o.state] + '</span> · <span class="muted">' + ago(o.at) + '</span><br>' +
           esc((o.from || '—') + ' → ' + (o.to || '—')) + '<br><span class="muted">' + esc(o.name || 'без имени') + ' · +' + esc(o.phone) + ' · ' + (o.scope === 'picked' ? 'выбранным' : 'всем') + ' · откликов: ' + o.responses +
           ' · устройство ' + esc(o.dev) + ' (заказов: ' + o.dev_orders + ')' + (o.blocked ? ' · <b class="err-msg">устройство заблокировано</b>' : '') + '</span>' + (o.note ? '<p>' + esc(o.note) + '</p>' : '') + '</div>' +
           '<div class="adm-act">' + (o.status === 'hidden' ? '<button class="btn btn-glass btn-sm" data-oh="0">Вернуть</button>' : '<button class="btn btn-glass btn-sm" data-oh="1">Скрыть</button>') +

@@ -21,7 +21,8 @@
     var total = base;
     if (o.loaders) { total += o.loaders * R.loader; lines.push(['Грузчики: ' + o.loaders + ' × ' + V.fmtNum(R.loader) + ' ₸', o.loaders * R.loader]); }
     if (o.floors) { total += o.floors * R.floor; lines.push(['Этажи без лифта: ' + o.floors + ' × ' + V.fmtNum(R.floor) + ' ₸', o.floors * R.floor]); }
-    var ex = EXTRA[o.what] || 0; if (ex) { total += ex; lines.push([o.what === 'Вывоз мусора' ? 'Утилизация мусора' : 'Упаковка / сборка', ex]); }
+    var key = o.cargo === 'trash' ? 'Вывоз мусора' : o.cargo === 'move' ? 'Переезд' : o.what;
+    var ex = EXTRA[key] || 0; if (ex) { total += ex; lines.push([key === 'Вывоз мусора' ? 'Утилизация мусора' : 'Упаковка / сборка', ex]); }
     var lo = r500(total), hi = r500(total * 1.2 + 250);
     return { lo: lo, hi: Math.max(hi, lo + 500), lines: lines };
   }
@@ -77,6 +78,7 @@
     var st = { inter: 0, loaders: 0, km: null, how: '', a: null, b: null, touchedInter: false, manual: false };
     var km = box.querySelector('[name=km]'), fl = box.querySelector('[name=floors]'), msg = box.querySelector('[data-msg]'), out = box.querySelector('[data-out]'), sum = box.querySelector('[data-sum]');
     var from = form.querySelector('[name=from]'), to = form.querySelector('[name=to]'), what = form.querySelector('[name=what]');
+    var cargo = form.querySelector('input[name=cargo]');
     function say(t, err) { msg.textContent = t || ''; msg.hidden = !t; msg.classList.toggle('err', !!err); }
     box.querySelectorAll('[data-c]').forEach(function (g) {
       g.addEventListener('click', function (e) {
@@ -90,11 +92,12 @@
     km.addEventListener('input', function () { km.value = km.value.replace(/[^\d.,]/g, '').slice(0, 6); st.manual = true; st.how = 'manual'; calc(); });
     fl.addEventListener('input', function () { fl.value = fl.value.replace(/\D/g, '').slice(0, 2); calc(); });
     if (what) what.addEventListener('input', calc);
+    if (cargo) cargo.addEventListener('input', calc);
     function R() { return rates(opts.rates && opts.rates()); }
     function calc() {
       var k = parseFloat(String(km.value).replace(',', '.'));
       if (!isFinite(k) || k <= 0) { form._calc = null; out.hidden = true; sum.textContent = ''; return; }
-      var o = { km: Math.round(k), inter: st.inter, loaders: st.loaders, floors: +fl.value || 0, what: what ? what.value.trim() : '' };
+      var o = { km: Math.round(k), inter: st.inter, loaders: st.loaders, floors: +fl.value || 0, what: what ? what.value.trim() : '', cargo: cargo ? cargo.value : '' };
       var e = estimate(o, R());
       out.hidden = false;
       out.innerHTML = '<p class="calc-range">' + rangeText(e) + '</p><ul>' + e.lines.map(function (l) { return '<li><span>' + V.esc(l[0]) + '</span><b>' + V.fmtNum(l[1]) + ' ₸</b></li>'; }).join('') + '</ul>' +

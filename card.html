@@ -25,7 +25,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="VEZU">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/style.css?v=b2f73f1c">
+<link rel="stylesheet" href="css/style.css?v=97e7eeeb">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -96,12 +96,14 @@
       <div><h2 data-i18n="order">Быстрый заказ</h2><p class="sub" data-i18n="order_sub">Заполните — сообщение уйдёт водителю в WhatsApp.</p></div>
       <button type="button" class="info-btn" data-info="geo" data-i18n-aria="why_geo" aria-label="Что это?"><svg><use href="#i-info"/></svg></button>
     </div>
-    <div class="qchips" aria-label="Что везём">
-      <button type="button" class="qchip" data-fill="what" data-v="Переезд" data-i18n="q_move">Переезд</button>
-      <button type="button" class="qchip" data-fill="what" data-v="Стройматериалы" data-i18n="q_build">Стройматериалы</button>
-      <button type="button" class="qchip" data-fill="what" data-v="Мебель" data-i18n="q_furn">Мебель</button>
-      <button type="button" class="qchip" data-fill="what" data-v="Вывоз мусора" data-i18n="q_trash">Вывоз мусора</button>
-    </div>
+    <div class="fld cargo-f"><span class="cargo-h">Тип груза</span>
+    <div class="qchips" role="group" aria-label="Тип груза"><input type="hidden" name="cargo" value="">
+      <button type="button" class="qchip" data-cargo="move" aria-pressed="false">Переезд / мебель</button>
+      <button type="button" class="qchip" data-cargo="appliance" aria-pressed="false">Бытовая техника</button>
+      <button type="button" class="qchip" data-cargo="build" aria-pressed="false">Стройматериалы</button>
+      <button type="button" class="qchip" data-cargo="trash" aria-pressed="false">Вывоз мусора</button>
+      <button type="button" class="qchip" data-cargo="other" aria-pressed="false">Другое</button>
+    </div></div>
     <label class="fld"><span class="sr">Что везём</span><input class="inp" name="what" placeholder="Что везём?" data-i18n-ph="what" maxlength="120"></label>
     <div class="route">
       <i class="dot d1"></i><i class="dot d2"></i>
@@ -137,8 +139,8 @@
 <script>try{if(localStorage.getItem('vezu-key'))document.body.classList.add('is-driver')}catch(e){}</script>
 <script src="js/vendor/qrcode.js?v=fbb6b69b"></script>
 <script src="js/vendor/inflate.js?v=4970705c"></script>
-<script src="js/common.js?v=a1d26d24"></script>
-<script src="js/calc.js?v=333e7752"></script>
+<script src="js/common.js?v=19f58633"></script>
+<script src="js/calc.js?v=265693e3"></script>
 <script src="js/config.js?v=566bab7b"></script>
 <script src="js/cloud.js?v=984bde38"></script>
 <script src="js/favs.js?v=610baa8d"></script>

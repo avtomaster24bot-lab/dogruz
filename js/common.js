@@ -341,6 +341,9 @@
   function fmtNum(v) { var n = String(v || '').replace(/\D/g, ''); return n ? Number(n).toLocaleString('ru-RU').replace(/\u00a0/g, ' ') : ''; }
   function fmtPrice(v) { var n = fmtNum(v); return n ? n + ' ₸' : ''; }
 
+  // Тип груза (поле cargo в заказе)
+  var CARGO = { move: 'Переезд / мебель', appliance: 'Бытовая техника', build: 'Стройматериалы', trash: 'Вывоз мусора', other: 'Другое' };
+  function cargoLabel(k) { return CARGO[k] || ''; }
   function orderText(o, toName) {
     var lines = [toName ? 'Здравствуйте, ' + String(toName).split(' ')[0] + '! Нужна перевозка.' : 'Здравствуйте! Нужна грузоперевозка.'];
     if (o.from) lines.push('Откуда: ' + o.from);
@@ -349,6 +352,7 @@
       lines.push('Google Maps: ' + gmapsLink(o.geo));
     }
     if (o.to) lines.push('Куда: ' + o.to);
+    if (o.cargo && CARGO[o.cargo]) lines.push('Тип груза: ' + CARGO[o.cargo]);
     if (o.what) lines.push('Что везём: ' + o.what);
     if (o.when) lines.push('Когда: ' + o.when);
     if (o.price) lines.push('Моя цена: ' + fmtPrice(o.price));
@@ -721,15 +725,23 @@
         inp.dispatchEvent(new Event('input'));
       });
     });
+    var cg = form.querySelector('input[name=cargo]');
+    if (cg) form.querySelectorAll('[data-cargo]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        cg.value = cg.value === b.dataset.cargo ? '' : b.dataset.cargo;
+        form.querySelectorAll('[data-cargo]').forEach(function (x) { var on = x.dataset.cargo === cg.value; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on); });
+        cg.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    });
     var price = form.querySelector('[name=price]');
     if (price) price.addEventListener('input', function () { price.value = fmtNum(price.value.replace(/\D/g, '').slice(0, 9)); });
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
-      var o = {}; ['from', 'to', 'what', 'when', 'price'].forEach(function (k) { var i = form.querySelector('[name=' + k + ']'); o[k] = i ? i.value.trim() : ''; });
+      var o = {}; ['from', 'to', 'what', 'when', 'price', 'cargo'].forEach(function (k) { var i = form.querySelector('[name=' + k + ']'); o[k] = i ? i.value.trim() : ''; });
       if (form._geo && o.from) o.geo = form._geo;
       if (form._calc) o.calc = form._calc;
       if (opts.note) o.note = opts.note();
-      if (!o.from && !o.to && !o.what) { toast(t('need_what')); (form.querySelector('[name=what]') || form.querySelector('input')).focus(); return; }
+      if (!o.from && !o.to && !o.what && !o.cargo) { toast(t('need_what')); (form.querySelector('[name=what]') || form.querySelector('input')).focus(); return; }
       openWA(getPhone(), orderText(o, getName && getName()));
     });
   }
@@ -783,7 +795,7 @@
     cardUrl: cardUrl, cardUrlAsync: cardUrlAsync, editUrl: editUrl,
     normPhone: normPhone, fmtPhone: fmtPhone, waLink: waLink, waApp: waApp, waApi: waApi, waIntent: waIntent, waHref: waHref, openWA: openWA, bindWaLink: bindWaLink, inAppBrowser: inAppBrowser,
     IS_MOBILE: IS_MOBILE, IS_ANDROID: IS_ANDROID, IS_IOS: IS_IOS, _nav: function (u) { location.href = u; }, gisLink: gisLink, gmapsLink: gmapsLink, fmtNum: fmtNum, fmtPrice: fmtPrice, orderText: orderText,
-    services: services, initials: initials, metaLine: metaLine, hoursText: hoursText, isOpen: isOpen, almatyHour: almatyHour, priceText: priceText, cardHero: cardHero, statusInfo: statusInfo, reviewsOn: reviewsOn, CONSENT: CONSENT, consentHtml: consentHtml, consentGate: consentGate, plural: plural, hhmm: hhmm, cardDetails: cardDetails, applyTheme: applyTheme,
+    services: services, initials: initials, metaLine: metaLine, hoursText: hoursText, isOpen: isOpen, almatyHour: almatyHour, priceText: priceText, cardHero: cardHero, statusInfo: statusInfo, reviewsOn: reviewsOn, CONSENT: CONSENT, CARGO: CARGO, cargoLabel: cargoLabel, consentHtml: consentHtml, consentGate: consentGate, plural: plural, hhmm: hhmm, cardDetails: cardDetails, applyTheme: applyTheme,
     qrSvg: qrSvg, qrPng: qrPng, vcf: vcf, contactIntent: contactIntent, addContact: addContact, download: download, fileName: fileName,
     toast: toast, copy: copy, share: share, bindOrderForm: bindOrderForm, bindInstall: bindInstall, cardManifest: cardManifest
   };
