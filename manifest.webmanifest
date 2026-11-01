@@ -1,9 +1,9 @@
 {
-  "name": "VEZU — визитка водителя",
+  "name": "ВЕЗУ — визитка водителя",
   "short_name": "VEZU",
-  "description": "Грузоперевозки до 3 тонн: визитка водителя с WhatsApp и QR-кодом.",
+  "description": "Бесплатная визитка водителя за 1 минуту: ссылка и QR, клиенты пишут в WhatsApp напрямую. Без сервера.",
   "id": "./new.html",
-  "start_url": "./new.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
@@ -26,52 +26,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Заказать перевозку",
-      "short_name": "Заказ",
-      "url": "app.html#order",
-      "icons": [
-        {
-          "src": "icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Мои заказы",
-      "short_name": "Мои заказы",
-      "url": "app.html#orders",
-      "icons": [
-        {
-          "src": "icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Мои водители",
-      "short_name": "Водители",
-      "url": "app.html#favs",
-      "icons": [
-        {
-          "src": "icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Лента заказов (для водителей)",
-      "short_name": "Лента",
-      "url": "app.html#feed",
-      "icons": [
-        {
-          "src": "icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
     }
   ]
 }
