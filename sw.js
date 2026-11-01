@@ -1,6 +1,6 @@
 /* ВЕЗУ service worker (статическая версия): сеть в первую очередь, кэш — чтобы генератор и QR работали офлайн.
    Данные визиток сюда не попадают: они в # адреса, а # не входит в запросы. */
-var CACHE = 'vezu-static-v1';
+var CACHE = 'vezu-static-v2';
 var SHELL = ['./', 'index.html', 'vizitka/', 'privacy.html', 'card.html', 'css/vz.css', 'js/vz.js', 'js/gen.js', 'js/view.js', 'js/legacy.js',
   'js/vendor/qrcode.js', 'js/vendor/inflate.js', 'favicon.svg', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'img/hero-van-720.webp', 'img/v-kabluk.webp', 'img/v-gazel.webp', 'img/v-gazel-long.webp', 'img/v-truck3.webp'];

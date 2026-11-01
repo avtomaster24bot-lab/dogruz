@@ -1,4 +1,5 @@
 /* ВЕЗУ — 2037 edition */
+[hidden]{display:none!important}
 :root{
   --bg:#06061a; --bg2:#0d0c2b; --ink:#f5f4ff; --muted:#b4b3d6; --dim:#8b8ab3;
   --glass:rgba(255,255,255,.055); --glass2:rgba(255,255,255,.09); --line:rgba(255,255,255,.12);
