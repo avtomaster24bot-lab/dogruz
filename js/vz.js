@@ -42,6 +42,12 @@
       err_t: 'Визитка не открылась', err_empty: 'В ссылке нет данных визитки. Возможно, ссылка обрезана или скопирована не полностью — попросите водителя прислать её ещё раз.',
       err_bad: 'Ссылка повреждена или скопирована не полностью. Попросите водителя прислать её ещё раз.', err_make: 'Сделать свою визитку',
       old_t: 'Эта визитка переехала', old_d: 'ВЕЗУ теперь работает без сервера: визитки хранятся только в ссылках. Старая облачная ссылка больше не открывается — попросите водителя прислать новую ссылку на визитку.',
+      install: 'Установить на телефон', inst_t: 'Установить ВЕЗУ на телефон', inst_done: 'Готово! Иконка ВЕЗУ появилась на главном экране.', close: 'Закрыть',
+      inst_android: '<ol class="inst"><li>Нажмите <b>⋮</b> (три точки) вверху справа в Chrome.</li><li>Выберите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b>.</li><li>Нажмите <b>«Установить»</b> — иконка ВЕЗУ появится на главном экране.</li></ol>',
+      inst_ios: '<ol class="inst"><li>Откройте сайт в <b>Safari</b>.</li><li>Нажмите <b>«Поделиться»</b> (квадрат со стрелкой) внизу экрана.</li><li>Выберите <b>«На экран „Домой“»</b> → <b>«Добавить»</b>.</li></ol>',
+      inst_inapp: '<ol class="inst"><li>Сайт открыт внутри Telegram/WhatsApp/Instagram — отсюда установить нельзя.</li><li>Нажмите <b>⋮</b> или <b>…</b> вверху и выберите <b>«Открыть в браузере»</b> (Chrome или Safari).</li><li>В браузере снова нажмите <b>«Установить на телефон»</b>.</li></ol>',
+      inst_desktop: '<ol class="inst"><li>В Chrome или Edge нажмите значок установки в адресной строке или меню <b>⋮</b> → <b>«Установить»</b>.</li><li>На телефоне откройте этот адрес в Chrome (Android) или Safari (iPhone).</li></ol>',
+      inst_why: 'С иконки генератор открывается за секунду и работает без интернета — данные по-прежнему остаются только на вашем телефоне.',
       old_wait: 'Открываем визитку…', offline: 'Нет интернета — визитка всё равно откроется, QR сохраняется в телефоне.'
     },
     kk: {
@@ -70,6 +76,12 @@
       err_t: 'Визитка ашылмады', err_empty: 'Сілтемеде визитка деректері жоқ. Сілтеме қысқарып қалған не толық көшірілмеген болуы мүмкін — жүргізушіден оны қайта жіберуін сұраңыз.',
       err_bad: 'Сілтеме бүлінген немесе толық көшірілмеген. Жүргізушіден оны қайта жіберуін сұраңыз.', err_make: 'Өз визиткаңды жаса',
       old_t: 'Бұл визитка көшті', old_d: 'ВЕЗУ енді серверсіз жұмыс істейді: визиткалар тек сілтемелерде сақталады. Ескі бұлттағы сілтеме ашылмайды — жүргізушіден визитканың жаңа сілтемесін сұраңыз.',
+      install: 'Телефонға орнату', inst_t: 'ВЕЗУ-ды телефонға орнату', inst_done: 'Дайын! ВЕЗУ белгішесі басты экранға шықты.', close: 'Жабу',
+      inst_android: '<ol class="inst"><li>Chrome-да жоғарғы оң жақтағы <b>⋮</b> (үш нүкте) басыңыз.</li><li><b>«Қолданбаны орнату»</b> немесе <b>«Басты экранға қосу»</b> таңдаңыз.</li><li><b>«Орнату»</b> басыңыз — ВЕЗУ белгішесі басты экранда пайда болады.</li></ol>',
+      inst_ios: '<ol class="inst"><li>Сайтты <b>Safari</b>-де ашыңыз.</li><li>Төмендегі <b>«Бөлісу»</b> батырмасын басыңыз.</li><li><b>«Басты экранға»</b> → <b>«Қосу»</b> таңдаңыз.</li></ol>',
+      inst_inapp: '<ol class="inst"><li>Сайт Telegram/WhatsApp/Instagram ішінде ашық — мұнда орнату мүмкін емес.</li><li>Жоғарыдағы <b>⋮</b> немесе <b>…</b> басып, <b>«Браузерде ашу»</b> таңдаңыз.</li><li>Браузерде қайтадан <b>«Телефонға орнату»</b> басыңыз.</li></ol>',
+      inst_desktop: '<ol class="inst"><li>Chrome не Edge-де мекенжай жолындағы орнату белгішесін немесе <b>⋮</b> → <b>«Орнату»</b> басыңыз.</li><li>Телефонда бұл мекенжайды Chrome (Android) не Safari (iPhone) арқылы ашыңыз.</li></ol>',
+      inst_why: 'Белгішеден генератор бір секундта ашылады және интернетсіз жұмыс істейді — деректер бұрынғыдай тек телефоныңызда қалады.',
       old_wait: 'Визитка ашылуда…', offline: 'Интернет жоқ — визитка бәрібір ашылады, QR телефонда сақталады.'
     }
   };
@@ -334,6 +346,40 @@
     for (var i = 0; i <= PREMIUM_THEME; i++) document.documentElement.classList.remove('th-' + i);
     document.documentElement.classList.add('th-' + (th || 0));
   }
+
+
+  // ---------- «Установить на телефон»: видна всегда, кроме уже установленного приложения ----------
+  var installEvt = null, installBtns = [];
+  var UA = navigator.userAgent || '', IS_IOS = /iPhone|iPad|iPod/i.test(UA) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1), IS_ANDROID = /Android/i.test(UA);
+  function inApp() { return !!(window.TelegramWebviewProxy || /Telegram|FBAN|FBAV|FB_IAB|Instagram|Line\/|; wv\)/i.test(UA)); }
+  function standalone() { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; }
+  window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); installEvt = e; });
+  window.addEventListener('appinstalled', function () { installEvt = null; toast(t('inst_done'), 4000); });
+  function sheet(title, html) {
+    var bg = document.createElement('div'); bg.className = 'sheet-bg';
+    bg.innerHTML = '<div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><button type="button" class="sheet-x" aria-label="' + esc(t('close')) + '">×</button><h2>' + esc(title) + '</h2><div class="sheet-b">' + html + '</div></div>';
+    function close() { bg.remove(); document.removeEventListener('keydown', key); }
+    function key(e) { if (e.key === 'Escape') close(); }
+    bg.addEventListener('click', function (e) { if (e.target === bg || e.target.closest('.sheet-x')) close(); });
+    document.addEventListener('keydown', key);
+    document.body.appendChild(bg); bg.querySelector('.sheet-x').focus();
+    return bg;
+  }
+  function installHelp() {
+    var k = inApp() ? 'inst_inapp' : IS_IOS ? 'inst_ios' : IS_ANDROID ? 'inst_android' : 'inst_desktop';
+    return sheet(t('inst_t'), t(k) + '<p class="hint" style="margin-top:12px">' + t('inst_why') + '</p>');
+  }
+  function doInstall() {
+    if (installEvt) { var ev = installEvt; installEvt = null; ev.prompt(); ev.userChoice.catch(function () {}); }
+    else installHelp();
+  }
+  function bindInstall() {
+    document.querySelectorAll('[data-install]').forEach(function (b) {
+      if (b._inst) return; b._inst = true; installBtns.push(b); b.hidden = standalone();
+      b.addEventListener('click', function (e) { e.preventDefault(); doInstall(); });
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindInstall); else bindInstall();
 
   // ---------- service worker ----------
   function registerSW(path) {

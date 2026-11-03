@@ -1,6 +1,6 @@
 /* ВЕЗУ service worker (статическая версия): сеть в первую очередь, кэш — чтобы генератор и QR работали офлайн.
    Данные визиток сюда не попадают: они в # адреса, а # не входит в запросы. */
-var CACHE = 'vezu-static-v2';
+var CACHE = 'vezu-static-v3';
 var SHELL = ['./', 'index.html', 'vizitka/', 'privacy.html', 'card.html', 'css/vz.css', 'js/vz.js', 'js/gen.js', 'js/view.js', 'js/legacy.js',
   'js/vendor/qrcode.js', 'js/vendor/inflate.js', 'favicon.svg', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
   'img/hero-van-720.webp', 'img/v-kabluk.webp', 'img/v-gazel.webp', 'img/v-gazel-long.webp', 'img/v-truck3.webp'];
@@ -10,10 +10,10 @@ self.addEventListener('install', function (e) {
     return c.addAll(SHELL.map(function (u) { return new Request(u, { cache: 'reload' }); }));
   }));
 });
-// Старые кэши (vezu-v1…v25 платформы) удаляем целиком
+// Удаляем только свои кэши: прошлые vezu-static-* и старые vezu-v1…v25 этого адреса. Кэши платформы /vezu/ (vezu-platform-*) не трогаем.
 self.addEventListener('activate', function (e) {
   e.waitUntil(caches.keys().then(function (keys) {
-    return Promise.all(keys.filter(function (k) { return k !== CACHE; }).map(function (k) { return caches.delete(k); }));
+    return Promise.all(keys.filter(function (k) { return k !== CACHE && (k.indexOf('vezu-static-') === 0 || /^vezu-v\d+$/.test(k)); }).map(function (k) { return caches.delete(k); }));
   }).then(function () { return self.clients.claim(); }));
 });
 // Навигация: только страницы сайта; прочие адреса (старые короткие адреса, 404) — напрямую в сеть.
